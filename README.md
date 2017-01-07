@@ -24,7 +24,7 @@ Such tasks doesn't require a bunch of intermdiate CAs or multiple server certifi
 
 In most cases (e.g. OpenVPN or Webserver Auth) your typical PKI will look like this:
 
-![Demo](structure1.png)
+![Demo](assets/structure.png)
 
 * 1 Certificate Authority
 * 1 Server 
@@ -32,24 +32,26 @@ In most cases (e.g. OpenVPN or Webserver Auth) your typical PKI will look like t
 * No Intermediate CA
 * Cerificate Depths of **1**
 
-### Directoy Structur ###
+### Directoy Structure ###
 
 The **X506-Tool** will create the following directory structure in your working dir
 
 ```raw
 working-dir
    |- ca (the Cerificate Authority files, database, ..)
-        |- ca.crt
-        |- ca.key
-        |- db.txt (list of all issued/revoked certs)
-        |- serial (certificate serial number counter)
-        |- crl.pem (Certificate revocation list)
+   |     |- ca.crt
+   |     |- ca.key
+   |     |- db.txt (list of all issued/revoked certs)
+   |     |- serial (certificate serial number counter)
+   |     |- crl.pem (Certificate revocation list)
+   |
    |- srv (the Server Certificate, Private Key, TLS Auth Key, DH-Params)
-        |- server.crt
-        |- server.key
-        |- tls-auth.key
-        |- server.csr
-        |- dhparam4096.pem
+   |     |- server.crt
+   |     |- server.key
+   |     |- tls-auth.key
+   |     |- server.csr
+   |     |- dhparam4096.pem
+   |
    |- clients (Storage of the Client Certificates)
         |- <client-name-a>
         |- <client-name-b>
