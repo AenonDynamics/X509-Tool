@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
 
+# __  ______   ___   ___      _____           _
+# \ \/ / ___| / _ \ / _ \    |_   _|__   ___ | |
+#  \  /|___ \| | | | (_) |_____| |/ _ \ / _ \| |
+#  /  \ ___) | |_| |\__, |_____| | (_) | (_) | |
+# /_/\_\____/ \___/   /_/      |_|\___/ \___/|_|
+#
+# Manage X509 Certificates used for Client-based-Authentication
+# License: MIT (X11) License
+# Copyright: 2015-2017 Andi Dittrich, 2017 Aenon Dynamics
+# https://github.com/AenonDynamics/X509-Tool
+
 # Exit on Error
 set -e
 
 # CLI Usage
-USAGE_INFO="Usage: x509-tool.sh init|add-client|revoke-client|show|verify <name>"
+USAGE_INFO="Usage: x509-tool.sh <init|add-client|revoke-client|show|verify> <name/filename>"
 
 # current working dir
 WORKING_DIR="$(pwd)"
