@@ -1,0 +1,8 @@
+.settings*
+.idea/*
+.project
+.credentials*
+gfx/*
+node_modules*
+.tmp*
+test/*
