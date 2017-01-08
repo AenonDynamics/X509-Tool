@@ -46,6 +46,9 @@ cipher AES-256-CBC
 # HMAC Algorithm for Packet Authentication
 auth SHA256
 
+# Force TLS cipher - Diffie–Hellman for key exchange; RSA for authentication; AES-256-CBC-SHA256 for the handshake
+tls-cipher TLS-DHE-RSA-WITH-AES-256-CBC-SHA256
+
 # disable compression on the VPN link (performance impact)
 comp-lzo no
 
@@ -110,6 +113,9 @@ cipher AES-256-CBC
 
 # HMAC Algorithm for Packet Authentication
 auth SHA256
+
+# Force TLS cipher - Diffie–Hellman for key exchange; RSA for authentication; AES-256-CBC-SHA256 for the handshake
+tls-cipher TLS-DHE-RSA-WITH-AES-256-CBC-SHA256
 
 # Keep trying indefinitely to resolve the host name of the OpenVPN server
 resolv-retry infinite
