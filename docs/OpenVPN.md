@@ -12,7 +12,7 @@ Please take a look on the [Official OpenVPN Server Example](https://openvpn.net/
 
 In this example, we've used a routed subnet topology (10.200.200.0/24). There are no routes pushed to the client yet. This means the client can only reach the VPN Server. 
 
-```conf
+```ini
 # use UDP as transport protocol
 proto udp
 
@@ -72,7 +72,7 @@ verb 3
 
 Please take a look on the [Official OpenVPN Client Example](https://openvpn.net/index.php/open-source/documentation/howto.html#client)
 
-```conf
+```ini
 # client mode -equivalent to pull && tls-client
 client
 
