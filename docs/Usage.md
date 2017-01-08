@@ -1,6 +1,14 @@
 Usage + Commands
 ==========================================
 
+## Available Commands ##
+
+* [init](#init)
+* [add-client](#add-client)
+* [revoke-client](#revoke-client)
+* [show](#view-certificate)
+* [verify](#verify-certificate)
+
 ## Syntax ##
 
 ```raw
