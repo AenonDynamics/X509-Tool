@@ -314,12 +314,14 @@ Contributors are welcome! Even if you are not familiar with X509 certificates or
 
 A set of useful resources
 
-* [Public key infrastructure](https://en.wikipedia.org/wiki/Public_key_infrastructure)
-* [AES](https://en.wikipedia.org/wiki/<Advanced_Encryption_Standard></Advanced_Encryption_Standard>)
-* [Transport Layer Security](https://en.wikipedia.org/wiki/Transport_Layer_Security)
-* [OpenSSL Certificate Authority](https://jamielinux.com/docs/openssl-certificate-authority/index.html)
-* [OpenVPN HOWTO](https://openvpn.net/index.php/open-source/documentation/howto.html)
-* [easy-rsa](https://github.com/OpenVPN/easy-rsa)
+* [Public key infrastructure](https://en.wikipedia.org/wiki/Public_key_infrastructure) | Page
+* [AES](https://en.wikipedia.org/wiki/<Advanced_Encryption_Standard></Advanced_Encryption_Standard>) | Page
+* [Transport Layer Security](https://en.wikipedia.org/wiki/Transport_Layer_Security) | Page
+* [OpenSSL Certificate Authority](https://jamielinux.com/docs/openssl-certificate-authority/index.html) | Page
+* [OpenVPN HOWTO](https://openvpn.net/index.php/open-source/documentation/howto.html) | Page
+* [easy-rsa](https://github.com/OpenVPN/easy-rsa) | Page
+* [BSI Cryptographic Key Recommendations](https://www.bsi.bund.de/SharedDocs/Downloads/DE/BSI/Publikationen/TechnischeRichtlinien/TR02102/BSI-TR-02102.pdf?__blob=publicationFile) (German) | PDF
+* [NIST Recommendation for Key Management](http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57Pt3r1.pdf) | PDF
 
 ## License ##
 X509-Tool is OpenSource and licensed under the Terms of [The MIT License (X11)](http://opensource.org/licenses/MIT). You're welcome to contribute!
