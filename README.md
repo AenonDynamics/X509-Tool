@@ -6,11 +6,11 @@ Single-File-Utlity to create X509 Certificates/PKI Structure for your OpenVPN Se
 ## Features ##
 
 * Single File CLI Tool
-* Create CA, TLS Auth, Server Cert, DH-Params **in one Step**
-* Add Clients
-* Revoke Clients
-* View Certificates
-* Verify Certificates
+* [Create CA, TLS Auth, Server Cert, DH-Params](docs/Usage.md#init) **in one Step**
+* [Add Clients](docs/Usage.md#add-client)
+* [Revoke Clients](docs/Usage.md#revoke-client)
+* [View Certificates](docs/Usage.md#view-certificate)
+* [Verify Certificates](docs/Usage.md#verify-certificate)
 * Maintain Certificate revocation list
 
 ## Documentation and Tutorials ##
@@ -122,7 +122,7 @@ CLIENT_COMMON_NAME="CLIENT-%s"
 
 Please refer to the [Usage/Available Commands](docs/Usage.md) Section for general usage informations
 
-```raw
+```bash
 # Step 1
 # create the CA (Crt+Key), Server (Crt+Key), Diffie-Hellman Parameter and TLS-Auth Key
 # "MyCA" is the name of your CA/Server Cert (Variable SRV_COMMON_NAME, CA_COMMON_NAME)
