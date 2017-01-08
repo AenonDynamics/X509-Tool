@@ -13,16 +13,16 @@ Single-File-Utlity to create X509 Certificates/PKI Structure for your OpenVPN Se
 * Verify Certificates
 * Maintain Certificate revocation list
 
+## Documentation and Tutorials ##
+
+* [OpenVPN Client/Server Configuration](docs/OpenVPN.md)
+
 ## Preface ##
 
 **The X509-Tool is designed as [easy-rsa](https://github.com/OpenVPN/easy-rsa) replacement**
 
 The primary objective is the creation of a simple, bulletproof tool which allows users to setup Certificates for OpenVPN or Webserver/TLS Authentication.
 Such tasks doesn't require a bunch of intermdiate CAs or multiple server certificates.
-
-## Documentation and Tutorials ##
-
-* [OpenVPN Client/Server Configuration](docs/OpenVPN.md)
 
 ### Basic CA Structure ###
 
