@@ -32,12 +32,12 @@ In most cases (e.g. OpenVPN or Webserver Auth) your typical PKI will look like t
 * No Intermediate CA
 * Cerificate Depths of **1**
 
-### Directoy Structure ###
+### Directory Structure ###
 
 The **X506-Tool** will create the following directory structure in your working dir
 
 ```raw
-working-dir
+<working-dir>
    |- ca (the Cerificate Authority files, database, ..)
    |     |- ca.crt
    |     |- ca.key
@@ -73,10 +73,10 @@ The Tool is shipped with a customized `openssl.conf` file which matches the used
 ### Syntax ###
 
 ```raw
-Usage: x509-tool.sh init|add-client|revoke-client|show|verify <name/filename>
+Usage: x509-tool.sh <init|add-client|revoke-client|show|verify> <name/filename>
 ```
 
-We recommend you to install the tool into a **separate** directory. This has the advantage that you only have to maintain one installation which is useable for multiple server setups.
+We recommend you to install the tool into a **different** directory. This has the advantage that you only have to maintain one installation which is useable for multiple server setups.
 
 #### Example: ####
 
