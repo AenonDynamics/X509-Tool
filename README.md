@@ -15,6 +15,7 @@ Single-File-Utlity to create X509 Certificates/PKI Structure for your OpenVPN Se
 
 ## Documentation and Tutorials ##
 
+* [Usage/Available Commands](docs/Usage.md)
 * [OpenVPN Client/Server Configuration](docs/OpenVPN.md)
 * [DD-WRT Server Configuration](docs/OpenVPN_DDWRT.md)
 
@@ -73,25 +74,6 @@ The **X506-Tool** will create the following directory structure in your working 
 The Tool is shipped with a customized `openssl.conf` file which matches the used directory structure as well as client/server handling.
 **Do not edit** this file if your are not sure what you're doing!
 
-## Usage ##
-
-### Syntax ###
-
-```raw
-Usage: x509-tool.sh <init|add-client|revoke-client|show|verify> <name/filename>
-```
-
-We recommend you to install the tool into a **different** directory. This has the advantage that you only have to maintain one installation which is useable for multiple server setups.
-
-#### Example: ####
-
-```raw
-/opt/pki-mgmt
-   |- x509-tool (the downloaded files)
-   |- server1 (working dir of your first setup)
-   |- server2 (working dir of your second setup)
-```
-
 ## Initial Setup ##
 
 ### Configuration File ###
@@ -136,166 +118,19 @@ SRV_COMMON_NAME="SRV-%s"
 CLIENT_COMMON_NAME="CLIENT-%s"
 ```
 
-### CA, Server-Cert, TLS-Auth, DH-Params ###
+### Getting Started ###
 
-**Command:** `x509-tool.sh init <ca-name>`
-
-In your current working dir, just run the following command to create the CA, Server-Cert, TLS-Auth, DH-Params in one step. The generation of the DH-Params will take **some minutes**!
+Please refer to the [Usage/Available Commands](docs/Usage.md) Section for general usage informations
 
 ```raw
+# Step 1
+# create the CA (Crt+Key), Server (Crt+Key), Diffie-Hellman Parameter and TLS-Auth Key
+# "MyCA" is the name of your CA/Server Cert (Variable SRV_COMMON_NAME, CA_COMMON_NAME)
 andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh init MyCA
-Creating Directory Structure..
 
-__________________________________________________________________________
-
- Initializing CA [MyCA]
-__________________________________________________________________________
-
-Generating TLS Auth Key..
-
-__________________________________________________________________________
-
- Generating CA..
-__________________________________________________________________________
-
-Generating a 4096 bit RSA private key
-................................................++
-..........++
-writing new private key to '/opt/pki-mgmt/server1/ca/ca.key'
------
-
-__________________________________________________________________________
-
- Certificate [/opt/pki-mgmt/server1/ca/ca.crt]
-__________________________________________________________________________
-
-.....
-
-```
-
-
-## Add Client ##
-
-Create a new Client Certificate and sign it
-
-**Command:** `x509-tool.sh add-client <name>`
-
-```raw
+# Step 2
+# Create your first Client named "user1"
 andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh add-client user1
-
-__________________________________________________________________________
-
- Generating Client Cert [user1]
-__________________________________________________________________________
-
-Generating a 4096 bit RSA private key
-.............................++
-............++
-writing new private key to '/home/andi/Development/OVPN-PKI/test/clients/user1/client.key'
------
-Using configuration from /home/andi/Development/OVPN-PKI/openssl.conf
-Check that the request matches the signature
-Signature ok
-The Subject's Distinguished Name is as follows
-countryName           :PRINTABLE:'DE'
-stateOrProvinceName   :ASN.1 12:'BREMEN'
-localityName          :ASN.1 12:'BREMEN'
-organizationName      :ASN.1 12:'Aenon Dynamics'
-organizationalUnitName:ASN.1 12:'OVPN-PKI Testing'
-commonName            :ASN.1 12:'CLIENT-user1'
-emailAddress          :IA5STRING:'pki-test@aenon-dynamics.com'
-Certificate is to be certified until Jan  5 12:35:45 2027 GMT (3650 days)
-
-......
-```
-
-## Revoke Client ##
-
-Revoke an existing User Certificate and update the Certificate revocation list
-
-**Command:** `x509-tool.sh revoke-client <name>`
-
-```raw
-andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh revoke-client user1
-
-__________________________________________________________________________
-
- Revoking Client-Cert [user1]..
-__________________________________________________________________________
-
-Revoking Certificate 02.
-Data Base Updated
-
-```
-
-## View Certificate ##
-
-View the Certificate as human readable text
-
-**Command:** `x509-tool.sh show <filename>`
-
-```raw
-andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh show clients/user1/client.crt
-
-__________________________________________________________________________
-
- Certificate [clients/user1/client.crt]
-__________________________________________________________________________
-
-Certificate:
-    Data:
-        Version: 3 (0x2)
-        Serial Number: 2 (0x2)
-    Signature Algorithm: sha256WithRSAEncryption
-        Issuer: C=DE, ST=BREMEN, L=BREMEN, O=Aenon Dynamics, OU=OVPN-PKI Testing, CN=CA-testca/emailAddress=pki-test@aenon-dynamics.com
-        Validity
-            Not Before: Jan  7 12:35:45 2017 GMT
-            Not After : Jan  5 12:35:45 2027 GMT
-        Subject: C=DE, ST=BREMEN, L=BREMEN, O=Aenon Dynamics, OU=OVPN-PKI Testing, CN=CLIENT-user1/emailAddress=pki-test@aenon-dynamics.com
-        Subject Public Key Info:
-            Public Key Algorithm: rsaEncryption
-                Public-Key: (4096 bit)
-                Modulus:
-.....
-```
-
-
-## Verify Certificate ##
-
-This command allows you to check the certificate status (lifetime, revocation)
-
-**Command:** `x509-tool.sh verify <filename>`
-
-#### Example 1 ####
-
-Client Certificate is not revoked and no expired.
-
-```raw
-andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh verify clients/user1/client.crt
-
-__________________________________________________________________________
-
- Verifying Certificate [clients/user1/client.crt]
-__________________________________________________________________________
-
-clients/user1/client.crt: OK
-```
-
-#### Example 2 ####
-
-Client Certificate is revoked.
-
-```raw
-andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh verify clients/user1/client.crt
-
-__________________________________________________________________________
-
- Verifying Certificate [clients/user1/client.crt]
-__________________________________________________________________________
-
-clients/user1/client.crt: C = DE, ST = BREMEN, L = BREMEN, O = Aenon Dynamics, OU = OVPN-PKI Testing, CN = CLIENT-user1, emailAddress = pki-test@aenon-dynamics.com
-error 23 at 0 depth lookup:certificate revoked
-
 ```
 
 ## Security Recommendations ##
