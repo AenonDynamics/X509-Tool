@@ -16,6 +16,7 @@ Single-File-Utlity to create X509 Certificates/PKI Structure for your OpenVPN Se
 ## Documentation and Tutorials ##
 
 * [OpenVPN Client/Server Configuration](docs/OpenVPN.md)
+* [DD-WRT Server Configuration](docs/OpenVPN_DDWRT.md)
 
 ## Preface ##
 
