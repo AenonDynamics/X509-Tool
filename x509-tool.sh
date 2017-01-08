@@ -124,7 +124,7 @@ function init(){
     $OVPN_BIN --genkey --secret $SRV_DIR/tls-auth.key
 
     # Set Common Name
-    export KEY_CN="$CA_NAME"
+    export KEY_CN="$(printf "$CA_COMMON_NAME" $1)"
 
     # Create Index +  Serial file
     echo "01" > "$CA_DIR/serial"
@@ -141,7 +141,7 @@ function init(){
     createCRL
 
     # Set Common Name
-    export KEY_CN="$SRV_NAME"
+    export KEY_CN="$(printf "$SRV_COMMON_NAME" $1)"
 
     # Create Private Key + CSR
     print_heading "Generating Server Cert.."
@@ -175,7 +175,7 @@ function addClient(){
     mkdir -p $CLIENT_DIR/$1
 
     # Set Clients Common Name
-    export KEY_CN="$CLIENT_NAME"
+    export KEY_CN="$(printf "$CLIENT_COMMON_NAME" $1)"
 
     # Create Private Key + CSR
     $OPENSSL_BIN req -days $CRT_EXPIRE -nodes -new -keyout $CLIENT_DIR/$1/client.key -out $CLIENT_DIR/$1/client.csr -config $BASEDIR/openssl.conf

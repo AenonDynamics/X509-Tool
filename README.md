@@ -94,10 +94,16 @@ We recommend you to install the tool into a **separate** directory. This has the
 First of all, you have to create a configuration file name `cert.conf` in your desired **working directory** (/opt/pki-mgmt/server1 in the example above). 
 This file contains some basic settings like the keysize, lifetime and certificate informations.
 
+The `X_COMMON_NAME` variables allows you to customize the common names of the CA or any generated Cert. This is especially useful for HTTPS Authentication were the common-name has to match the URL!
+By default, the tool prefixes the common-names with their task. The placeholder `%s` is expanded by the second cli argument (name).
+
 **All Options are required** 
 
 ```bash
 #!/bin/bash
+
+# OpenSSL Related Configuration
+# -----------------------------------------------
 
 # Recommended Key Size: >= 3072 bit
 export KEY_SIZE=4096
@@ -110,11 +116,19 @@ export CRT_EXPIRE=3650
 
 # Your Cert Params
 export KEY_COUNTRY="DE"
-export KEY_PROVINCE="BREMEN"
-export KEY_CITY="BREMEN"
-export KEY_ORG="Aenon Dynamics"
-export KEY_EMAIL="pki-test@aenon-dynamics.com"
+export KEY_PROVINCE="BERLIN"
+export KEY_CITY="BERLIN"
+export KEY_ORG="My Company"
+export KEY_EMAIL="pki-test@yourdomain.tld"
 export KEY_OU="OVPN-PKI Testing"
+
+# Certificate Common Name Templates
+# -----------------------------------------------
+
+# The placeholder %s is replaced by the second CLI argument
+CA_COMMON_NAME="CA-%s"
+SRV_COMMON_NAME="SRV-%s"
+CLIENT_COMMON_NAME="CLIENT-%s"
 ```
 
 ### CA, Server-Cert, TLS-Auth, DH-Params ###
