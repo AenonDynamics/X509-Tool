@@ -203,7 +203,7 @@ function revokeClient(){
     fi
 
     # Set Clients Common Name
-    export KEY_CN="$CLIENT_NAME"
+    export KEY_CN="$(printf "$CLIENT_COMMON_NAME" $1)"
 
     print_heading "Revoking Client-Cert [$1].."
     $OPENSSL_BIN ca -revoke $CLIENT_DIR/$1/client.crt -config $BASEDIR/openssl.conf
