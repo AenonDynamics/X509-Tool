@@ -15,13 +15,13 @@
 set -e
 
 # CLI Usage
-USAGE_INFO="Usage: x509-tool.sh <init|add-client|revoke-client|show|verify> <name/filename>"
+USAGE_INFO="Usage: x509-tool <init|add-client|revoke-client|show|verify> <name/filename>"
 
 # current working dir
 WORKING_DIR="$(pwd)"
 
 # basedir
-BASEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+BASEDIR="$( cd "$( dirname "$(realpath $BASH_SOURCE[0])" )" && pwd )"
 
 # locations
 OVPN_BIN=/usr/sbin/openvpn
@@ -177,13 +177,24 @@ function addClient(){
     # Set Clients Common Name
     export KEY_CN="$(printf "$CLIENT_COMMON_NAME" $1)"
 
+    echo $KEY_COUNTRY
+    echo $KEY_PROVINCE
+    echo $KEY_CITY
+    echo $KEY_ORG
+    echo $KEY_OU
+    echo $KEY_CN
+    echo $KEY_EMAIL
+
     # Create Private Key + CSR
+    echo "Generating Private KEY + CSR.."
     $OPENSSL_BIN req -days $CRT_EXPIRE -nodes -new -keyout $CLIENT_DIR/$1/client.key -out $CLIENT_DIR/$1/client.csr -config $BASEDIR/openssl.conf
 
     # Sign CSR -> Generate CERT
+    echo "Creating CSR.."
     $OPENSSL_BIN ca -batch -extensions usr_cert -days $CRT_EXPIRE -out $CLIENT_DIR/$1/client.crt -in $CLIENT_DIR/$1/client.csr -config $BASEDIR/openssl.conf
 
     # Convert to p12 (easier handling)
+    echo "Converting to p12 format.."
     $OPENSSL_BIN pkcs12 -nodes -export -out $CLIENT_DIR/$1/client.p12 -inkey $CLIENT_DIR/$1/client.key -in $CLIENT_DIR/$1/client.crt -certfile $CA_DIR/ca.crt
 
     # Copy TLS Auth

@@ -1,0 +1,38 @@
+{
+    "name": "x509-tool",
+    "version": "0.1.0",
+    "package-monster": "0.2.0",
+    "description": "Manage X509 Certificates used for Client-based-Authentication",
+    "license": "MIT",
+    "author": "Andi Dittrich <opensource@aenon-dynamics.com>",
+    "website": "https://github.com/AenonDynamics/X509-Tool",
+    "bugs": "https://github.com/AenonDynamics/X509-Tool/issues",
+    "multiversion": false,
+
+    "debian": {
+
+        "section": "utils",
+        "priority": "extra",
+
+        "dependencies": [
+            "openvpn",
+            "openssl (>= 1.1.0)"
+        ],
+
+        "conf": [
+            "openssl.conf",
+            "cert.example.conf"
+        ],
+
+        "bin": [
+            "x509-tool"
+        ],
+
+        "sbin": [
+        ],
+
+        "scripts": {
+        }
+    }
+
+}
