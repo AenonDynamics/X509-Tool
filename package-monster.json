@@ -1,6 +1,6 @@
 {
     "name": "x509-tool",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "package-monster": "0.2.0",
     "description": "Manage X509 Certificates used for Client-based-Authentication",
     "license": "MIT",
