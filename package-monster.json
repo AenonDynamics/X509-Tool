@@ -8,6 +8,7 @@
     "website": "https://github.com/AenonDynamics/X509-Tool",
     "bugs": "https://github.com/AenonDynamics/X509-Tool/issues",
     "multiversion": false,
+    "repository": "public",
 
     "debian": {
 

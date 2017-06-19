@@ -26,6 +26,7 @@ BASEDIR="$( cd "$( dirname "$(realpath $BASH_SOURCE[0])" )" && pwd )"
 # locations
 OVPN_BIN=/usr/sbin/openvpn
 OPENSSL_BIN=/usr/bin/openssl
+CONF_DIR=/etc/x509-tool
 
 # action given ?
 if [ $# -ne 2 ]; then
@@ -42,6 +43,7 @@ fi
 # cert config available ?
 if [ ! -f "$WORKING_DIR/cert.conf" ]; then
     echo "Error: Configuration file cert.conf not found in current directory! Do you have created it yet?"
+    echo "An example file is available in $CONF_DIR/cert.example.conf"
     exit 1
 fi
 
@@ -55,11 +57,6 @@ source "$WORKING_DIR/cert.conf"
 export CA_DIR="$WORKING_DIR/ca"
 export SRV_DIR="$WORKING_DIR/srv"
 export CLIENT_DIR="$WORKING_DIR/clients"
-
-# client CN, server CN and CA Name templates
-CA_NAME="CA-$2"
-SRV_NAME="SRV-$2"
-CLIENT_NAME="CLIENT-$2"
 
 # Simple Header
 # ----------------------------------------------
@@ -88,7 +85,7 @@ function showCert(){
 # ----------------------------------------------
 function createCRL(){
     print_heading "Certificate revocation list [$1]"
-    $OPENSSL_BIN ca -batch -gencrl -config $BASEDIR/openssl.conf -out $CA_DIR/crl.pem
+    $OPENSSL_BIN ca -batch -gencrl -config $CONF_DIR/openssl.conf -out $CA_DIR/crl.pem
     $OPENSSL_BIN crl -in $CA_DIR/crl.pem -noout -text
 
     # join ca+crl for verification
@@ -132,7 +129,7 @@ function init(){
 
     # Create CA
     print_heading "Generating CA.."
-    $OPENSSL_BIN req -days $CA_EXPIRE -nodes -new -x509 -keyout $CA_DIR/ca.key -out $CA_DIR/ca.crt -config $BASEDIR/openssl.conf
+    $OPENSSL_BIN req -days $CA_EXPIRE -nodes -new -x509 -keyout $CA_DIR/ca.key -out $CA_DIR/ca.crt -config $CONF_DIR/openssl.conf
 
     # show CA cert
     showCert $CA_DIR/ca.crt
@@ -145,8 +142,8 @@ function init(){
 
     # Create Private Key + CSR
     print_heading "Generating Server Cert.."
-    $OPENSSL_BIN req -days $CRT_EXPIRE -nodes -new -keyout $SRV_DIR/server.key -out $SRV_DIR/server.csr -config $BASEDIR/openssl.conf
-    $OPENSSL_BIN ca -batch -extensions server -days $SRV_DIR -out $SRV_DIR/server.crt -in $SRV_DIR/server.csr -config $BASEDIR/openssl.conf
+    $OPENSSL_BIN req -days $CRT_EXPIRE -nodes -new -keyout $SRV_DIR/server.key -out $SRV_DIR/server.csr -config $CONF_DIR/openssl.conf
+    $OPENSSL_BIN ca -batch -extensions server -days $SRV_DIR -out $SRV_DIR/server.crt -in $SRV_DIR/server.csr -config $CONF_DIR/openssl.conf
 
     # show server cert
     showCert $SRV_DIR/server.crt
@@ -187,11 +184,11 @@ function addClient(){
 
     # Create Private Key + CSR
     echo "Generating Private KEY + CSR.."
-    $OPENSSL_BIN req -days $CRT_EXPIRE -nodes -new -keyout $CLIENT_DIR/$1/client.key -out $CLIENT_DIR/$1/client.csr -config $BASEDIR/openssl.conf
+    $OPENSSL_BIN req -days $CRT_EXPIRE -nodes -new -keyout $CLIENT_DIR/$1/client.key -out $CLIENT_DIR/$1/client.csr -config $CONF_DIR/openssl.conf
 
     # Sign CSR -> Generate CERT
     echo "Creating CSR.."
-    $OPENSSL_BIN ca -batch -extensions usr_cert -days $CRT_EXPIRE -out $CLIENT_DIR/$1/client.crt -in $CLIENT_DIR/$1/client.csr -config $BASEDIR/openssl.conf
+    $OPENSSL_BIN ca -batch -extensions usr_cert -days $CRT_EXPIRE -out $CLIENT_DIR/$1/client.crt -in $CLIENT_DIR/$1/client.csr -config $CONF_DIR/openssl.conf
 
     # Convert to p12 (easier handling)
     echo "Converting to p12 format.."
@@ -217,7 +214,7 @@ function revokeClient(){
     export KEY_CN="$(printf "$CLIENT_COMMON_NAME" $1)"
 
     print_heading "Revoking Client-Cert [$1].."
-    $OPENSSL_BIN ca -revoke $CLIENT_DIR/$1/client.crt -config $BASEDIR/openssl.conf
+    $OPENSSL_BIN ca -revoke $CLIENT_DIR/$1/client.crt -config $CONF_DIR/openssl.conf
 
     # Re-Create CRL
     createCRL
