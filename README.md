@@ -19,6 +19,19 @@ Single-File-Utlity to create X509 Certificates/PKI Structure for your OpenVPN Se
 * [OpenVPN Client/Server Configuration](docs/OpenVPN.md)
 * [DD-WRT Server Configuration](docs/OpenVPN_DDWRT.md)
 
+## Installation ##
+
+### 1. Add Aenon-Dynamics Repository ###
+
+See [AenonDynamics/CPR](https://github.com/AenonDynamics/CPR#debian-packages)
+
+### 2. Install the Package via APT ###
+
+```
+apt-get update
+apt-get install x509-tool
+```
+
 ## Preface ##
 
 **The X509-Tool is designed as [easy-rsa](https://github.com/OpenVPN/easy-rsa) replacement**
