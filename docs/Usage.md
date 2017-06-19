@@ -12,7 +12,7 @@ Usage + Commands
 ## Syntax ##
 
 ```raw
-Usage: x509-tool.sh <init|add-client|revoke-client|show|verify> <name/filename>
+Usage: x509-tool <init|add-client|revoke-client|show|verify> <name/filename>
 ```
 
 We recommend you to install the tool into a **different** directory. This has the advantage that you only have to maintain one installation which is useable for multiple server setups.
@@ -30,12 +30,12 @@ We recommend you to install the tool into a **different** directory. This has th
 
 Create the CA (Crt+Key), Server (Crt+Key), Diffie-Hellman Parameter and TLS-Auth Key
 
-**Command:** `x509-tool.sh init <ca-name>`
+**Command:** `x509-tool init <ca-name>`
 
 In your current working dir, just run the following command to create the CA, Server-Cert, TLS-Auth, DH-Params in one step. The generation of the DH-Params will take **some minutes**!
 
 ```raw
-andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh init MyCA
+/opt/pki-mgmt/server1$ x509-tool init MyCA
 Creating Directory Structure..
 
 __________________________________________________________________________
@@ -70,10 +70,10 @@ __________________________________________________________________________
 
 Create a new Client Certificate and sign it
 
-**Command:** `x509-tool.sh add-client <name>`
+**Command:** `x509-tool add-client <name>`
 
 ```raw
-andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh add-client user1
+/opt/pki-mgmt/server1$ x509-tool add-client user1
 
 __________________________________________________________________________
 
@@ -105,10 +105,10 @@ Certificate is to be certified until Jan  5 12:35:45 2027 GMT (3650 days)
 
 Revoke an existing User Certificate and update the Certificate revocation list
 
-**Command:** `x509-tool.sh revoke-client <name>`
+**Command:** `x509-tool revoke-client <name>`
 
 ```raw
-andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh revoke-client user1
+/opt/pki-mgmt/server1$ x509-tool revoke-client user1
 
 __________________________________________________________________________
 
@@ -124,10 +124,10 @@ Data Base Updated
 
 View the Certificate as human readable text
 
-**Command:** `x509-tool.sh show <filename>`
+**Command:** `x509-tool show <filename>`
 
 ```raw
-andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh show clients/user1/client.crt
+/opt/pki-mgmt/server1$ x509-tool show clients/user1/client.crt
 
 __________________________________________________________________________
 
@@ -157,14 +157,14 @@ Certificate:
 
 This command allows you to check the certificate status (lifetime, revocation)
 
-**Command:** `x509-tool.sh verify <filename>`
+**Command:** `x509-tool verify <filename>`
 
 #### Example 1 ####
 
 Client Certificate is not revoked and no expired.
 
 ```raw
-andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh verify clients/user1/client.crt
+/opt/pki-mgmt/server1$ x509-tool verify clients/user1/client.crt
 
 __________________________________________________________________________
 
@@ -179,7 +179,7 @@ clients/user1/client.crt: OK
 Client Certificate is revoked.
 
 ```raw
-andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh verify clients/user1/client.crt
+/opt/pki-mgmt/server1$ x509-tool verify clients/user1/client.crt
 
 __________________________________________________________________________
 

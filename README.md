@@ -139,11 +139,11 @@ Please refer to the [Usage/Available Commands](docs/Usage.md) Section for genera
 # Step 1
 # create the CA (Crt+Key), Server (Crt+Key), Diffie-Hellman Parameter and TLS-Auth Key
 # "MyCA" is the name of your CA/Server Cert (Variable SRV_COMMON_NAME, CA_COMMON_NAME)
-andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh init MyCA
+$ x509-tool init MyCA
 
 # Step 2
 # Create your first Client named "user1"
-andi@sapphire:/opt/pki-mgmt/server1$ ../x509-tool.sh add-client user1
+$ x509-tool add-client user1
 ```
 
 ## Security Recommendations ##
