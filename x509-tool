@@ -71,7 +71,7 @@ print_heading(){
     echo ""
     echo " $1"
     echo "__________________________________________________________________________"
-    echo -e '\x1B[39m'
+    echo -e '\x1B[0m'
 }
 
 # Display Cert in clear-text
@@ -126,6 +126,7 @@ function init(){
     # Create Index +  Serial file
     echo "01" > "$CA_DIR/serial"
     touch "$CA_DIR/db.txt"
+    touch "$CA_DIR/db.txt.attr"
 
     # Create CA
     print_heading "Generating CA.."
@@ -142,8 +143,8 @@ function init(){
 
     # Create Private Key + CSR
     print_heading "Generating Server Cert.."
-    $OPENSSL_BIN req -days $CRT_EXPIRE -nodes -new -keyout $SRV_DIR/server.key -out $SRV_DIR/server.csr -config $CONF_DIR/openssl.conf
-    $OPENSSL_BIN ca -batch -extensions server -days $SRV_DIR -out $SRV_DIR/server.crt -in $SRV_DIR/server.csr -config $CONF_DIR/openssl.conf
+    $OPENSSL_BIN req -nodes -new -keyout $SRV_DIR/server.key -out $SRV_DIR/server.csr -config $CONF_DIR/openssl.conf
+    $OPENSSL_BIN ca -batch -extensions server -days $CRT_EXPIRE -out $SRV_DIR/server.crt -in $SRV_DIR/server.csr -config $CONF_DIR/openssl.conf
 
     # show server cert
     showCert $SRV_DIR/server.crt
@@ -187,7 +188,7 @@ function addClient(){
     $OPENSSL_BIN req -days $CRT_EXPIRE -nodes -new -keyout $CLIENT_DIR/$1/client.key -out $CLIENT_DIR/$1/client.csr -config $CONF_DIR/openssl.conf
 
     # Sign CSR -> Generate CERT
-    echo "Creating CSR.."
+    echo "Creating CRT.."
     $OPENSSL_BIN ca -batch -extensions usr_cert -days $CRT_EXPIRE -out $CLIENT_DIR/$1/client.crt -in $CLIENT_DIR/$1/client.csr -config $CONF_DIR/openssl.conf
 
     # Convert to p12 (easier handling)
