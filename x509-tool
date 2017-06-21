@@ -146,6 +146,10 @@ function init(){
     $OPENSSL_BIN req -nodes -new -keyout $SRV_DIR/server.key -out $SRV_DIR/server.csr -config $CONF_DIR/openssl.conf
     $OPENSSL_BIN ca -batch -extensions server -days $CRT_EXPIRE -out $SRV_DIR/server.crt -in $SRV_DIR/server.csr -config $CONF_DIR/openssl.conf
 
+    # Convert to p12 (easier handling)
+    echo "Converting to p12 format.."
+    $OPENSSL_BIN pkcs12 -nodes -export -out $SRV_DIR/server.p12 -inkey $SRV_DIR/server.key -in $SRV_DIR/server.crt -certfile $CA_DIR/ca.crt -passout pass:
+
     # show server cert
     showCert $SRV_DIR/server.crt
 
