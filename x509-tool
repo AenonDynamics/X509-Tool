@@ -193,7 +193,7 @@ function addClient(){
 
     # Convert to p12 (easier handling)
     echo "Converting to p12 format.."
-    $OPENSSL_BIN pkcs12 -nodes -export -out $CLIENT_DIR/$1/client.p12 -inkey $CLIENT_DIR/$1/client.key -in $CLIENT_DIR/$1/client.crt -certfile $CA_DIR/ca.crt
+    $OPENSSL_BIN pkcs12 -nodes -export -out $CLIENT_DIR/$1/client.p12 -inkey $CLIENT_DIR/$1/client.key -in $CLIENT_DIR/$1/client.crt -certfile $CA_DIR/ca.crt -passout pass:
 
     # Copy TLS Auth
     cp $SRV_DIR/tls-auth.key $CLIENT_DIR/$1/tls-auth.key

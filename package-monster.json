@@ -1,6 +1,6 @@
 {
     "name": "x509-tool",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "package-monster": "0.2.0",
     "description": "Manage X509 Certificates used for Client-based-Authentication",
     "license": "MIT",
@@ -18,7 +18,7 @@
 
         "dependencies": [
             "openvpn",
-            "openssl (>= 1.1.0)"
+            "openssl (>= 1.0.0)"
         ],
 
         "conf": [

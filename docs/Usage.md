@@ -21,7 +21,6 @@ We recommend you to install the tool into a **different** directory. This has th
 
 ```raw
 /opt/pki-mgmt
-   |- x509-tool (the downloaded files)
    |- server1 (working dir of your first setup)
    |- server2 (working dir of your second setup)
 ```
