@@ -23,6 +23,8 @@ VERSION="2.0.0"
 show_usage(){
     cat << EOF
 Usage: x509-tool <command> [args...]
+
+  Commands:
     init ca <ca-name>           Initializes basic ca directory structure
     init openvpn <ca-name>      Initializes CA + tls auth, dhparams and single server
     client add <cname>          Add a new client certificate
@@ -31,6 +33,7 @@ Usage: x509-tool <command> [args...]
     server revoke <cname>       Revoke a server vertificate
     verify <cert-file>          Verifies a certificate against CRL
     show <cert-file>            Display a certificate as text
+
     --help                      Displays this help
     --version                   Displays version
 EOF
@@ -63,8 +66,8 @@ BASEDIR="$( cd "$( dirname "$(realpath $BASH_SOURCE[0])" )" && pwd )"
 # locations
 OVPN_BIN=/usr/sbin/openvpn
 OPENSSL_BIN=/usr/bin/openssl
-#CONF_DIR=/etc/x509-tool
-CONF_DIR=$BASEDIR
+CONF_DIR=/etc/x509-tool
+#CONF_DIR=$BASEDIR
 
 # command provided ?
 if [ -z "$1" ]; then

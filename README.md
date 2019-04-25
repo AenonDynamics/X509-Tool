@@ -1,5 +1,5 @@
-X509 PKI Setup Utility
-==========================
+X509v3 Certificate Management Utility
+======================================
 
 Single-File-Utlity to create X509v3 Certificates/PKI Structure for **any** TLS based communication.
 
@@ -20,6 +20,8 @@ Single-File-Utlity to create X509v3 Certificates/PKI Structure for **any** TLS b
 
 ```raw
 Usage: x509-tool <command> [args...]
+
+  Commands:
     init ca <ca-name>           Initializes basic ca directory structure
     init openvpn <ca-name>      Initializes CA + tls auth, dhparams and single server
     client add <cname>          Add a new client certificate
@@ -28,6 +30,7 @@ Usage: x509-tool <command> [args...]
     server revoke <cname>       Revoke a server vertificate
     verify <cert-file>          Verifies a certificate against CRL
     show <cert-file>            Display a certificate as text
+
     --help                      Displays this help
     --version                   Displays version
 ```
