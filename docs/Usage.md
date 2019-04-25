@@ -12,22 +12,6 @@ Usage + Commands
 * [show](#view-certificate)
 * [verify](#verify-certificate)
 
-## Usage ##
-
-```raw
-Usage: x509-tool <command> [args...]
-    init ca <ca-name>           Initializes basic ca directory structure
-    init openvpn <ca-name>      Initializes CA + tls auth, dhparams and single server
-    client add <cname>          Add a new client certificate
-    client revoke <cname>       Revoke a client certificate
-    server add <cname>          Add a new server certificate
-    server revoke <cname>       Revoke a server vertificate
-    verify <cert-file>          Verifies a certificate against CRL
-    show <cert-file>            Display a certificate as text
-    --help                      Displays this help
-    --version                   Displays version
-```
-
 We recommend you to install the tool into a **different** directory. This has the advantage that you only have to maintain one installation which is useable for multiple server setups.
 
 #### Example: ####
