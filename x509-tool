@@ -1,21 +1,58 @@
 #!/usr/bin/env bash
 
+# ----------------------------------------------------------------------
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# --
+# Copyright 2015-2019 Andi Dittrich <https://aenon-dynamics.com>
+# ----------------------------------------------------------------------
 # __  ______   ___   ___      _____           _
 # \ \/ / ___| / _ \ / _ \    |_   _|__   ___ | |
 #  \  /|___ \| | | | (_) |_____| |/ _ \ / _ \| |
 #  /  \ ___) | |_| |\__, |_____| | (_) | (_) | |
 # /_/\_\____/ \___/   /_/      |_|\___/ \___/|_|
 #
-# Manage X509 Certificates used for Client-based-Authentication
-# License: MIT (X11) License
-# Copyright: 2015-2017 Andi Dittrich, 2017 Aenon Dynamics
+# manage X509 certificates used for cert-based-authentication
 # https://github.com/AenonDynamics/X509-Tool
+#
+# ----------------------------------------------------------------------
+
+VERSION="2.0.0"
+
+show_usage(){
+    cat << EOF
+Usage: x509-tool <command> [args...]
+    init ca <ca-name>           Initializes basic ca directory structure
+    init openvpn <ca-name>      Initializes CA + tls auth, dhparams and single server
+    client add <cname>          Add a new client certificate
+    client revoke <cname>       Revoke a client certificate
+    server add <cname>          Add a new server certificate
+    server revoke <cname>       Revoke a server vertificate
+    verify <cert-file>          Verifies a certificate against CRL
+    show <cert-file>            Display a certificate as text
+    --help                      Displays this help
+    --version                   Displays version
+EOF
+    exit 0
+}
+
+show_version(){
+    cat << EOF
+x509-tool
+ - Version: ${VERSION}
+ - License: MPL-2.0 http://mozilla.org/MPL/2.0/
+ - Repository: https://github.com/AenonDynamics/x509-tool
+EOF
+    exit 0
+}
+
+# simple processing
+[ "$1" = "--help" ] && show_usage
+[ "$1" = "--version" ] && show_version
 
 # Exit on Error
 set -e
-
-# CLI Usage
-USAGE_INFO="Usage: x509-tool <init|add-client|revoke-client|show|verify> <name/filename>"
 
 # current working dir
 WORKING_DIR="$(pwd)"
@@ -26,18 +63,12 @@ BASEDIR="$( cd "$( dirname "$(realpath $BASH_SOURCE[0])" )" && pwd )"
 # locations
 OVPN_BIN=/usr/sbin/openvpn
 OPENSSL_BIN=/usr/bin/openssl
-CONF_DIR=/etc/x509-tool
+#CONF_DIR=/etc/x509-tool
+CONF_DIR=$BASEDIR
 
-# action given ?
-if [ $# -ne 2 ]; then
-    echo $USAGE_INFO
-    exit 1
-fi
-
-# name provided ?
-if [ -z "$2" ]; then
-    echo $USAGE_INFO
-    exit 1
+# command provided ?
+if [ -z "$1" ]; then
+    show_usage
 fi
 
 # cert config available ?
@@ -55,7 +86,8 @@ source "$WORKING_DIR/cert.conf"
 
 # Export Config Dirs
 export CA_DIR="$WORKING_DIR/ca"
-export SRV_DIR="$WORKING_DIR/srv"
+export ICA_DIR="$WORKING_DIR/ica"
+export SERVER_DIR="$WORKING_DIR/servers"
 export CLIENT_DIR="$WORKING_DIR/clients"
 
 # Simple Header
@@ -74,19 +106,36 @@ print_heading(){
     echo -e '\x1B[0m'
 }
 
+# Check environment
+# ----------------------------------------------
+function environmentCheck(){
+    :
+}
+
 # Display Cert in clear-text
 # ----------------------------------------------
 function showCert(){
     print_heading "Certificate [$1]"
-    $OPENSSL_BIN x509 -in $1 -text -noout
+    $OPENSSL_BIN x509 \
+        -in $1 \
+        -text \
+        -noout
 }
 
 # (Re-)Create the Certificate revocation list
 # ----------------------------------------------
 function createCRL(){
     print_heading "Certificate revocation list [$1]"
-    $OPENSSL_BIN ca -batch -gencrl -config $CONF_DIR/openssl.conf -out $CA_DIR/crl.pem
-    $OPENSSL_BIN crl -in $CA_DIR/crl.pem -noout -text
+    $OPENSSL_BIN ca \
+        -batch \
+        -config $CONF_DIR/openssl.conf \
+        -gencrl \
+        -out $CA_DIR/crl.pem
+
+    $OPENSSL_BIN crl \
+        -in $CA_DIR/crl.pem \
+        -noout \
+        -text
 
     # join ca+crl for verification
     cat $CA_DIR/crl.pem $CA_DIR/ca.crt > $CA_DIR/ca-crl-verify.pem
@@ -96,29 +145,161 @@ function createCRL(){
 # ----------------------------------------------
 function verifyCert(){
     print_heading "Verifying Certificate [$1]"
-    $OPENSSL_BIN verify -crl_check -CAfile $CA_DIR/ca-crl-verify.pem $1
+    $OPENSSL_BIN verify \
+        -crl_check \
+        -CAfile $CA_DIR/ca-crl-verify.pem \
+        $1
 }
 
-# Create CA, Server Cert, TLS Auth Key, dhparams
+# Create new Cert
 # ----------------------------------------------
-function init(){
+function createCert(){
+   
+    # openssl extension
+    OPENSSL_EXT=$2
+
+    # output filename
+    OUTPUT_NAME=$3
+
+    # <storage_dir>/<common_name>
+    OUTPUT_DIR=$4/$1
+
+    # create output dir
+    mkdir -p $OUTPUT_DIR
+
+    # Set Clients Common Name
+    export KEY_CN="$(printf "$CLIENT_COMMON_NAME" $1)"
+
+    # Show info
+    echo $KEY_COUNTRY
+    echo $KEY_PROVINCE
+    echo $KEY_CITY
+    echo $KEY_ORG
+    echo $KEY_OU
+    echo $KEY_CN
+    echo $KEY_EMAIL
+
+    # Create Private Key + CSR
+    echo "generating private-key and signing request.."
+    $OPENSSL_BIN req \
+        -config $CONF_DIR/openssl.conf \
+        -days $CRT_EXPIRE \
+        -nodes \
+        -new \
+        -keyout $OUTPUT_DIR/$OUTPUT_NAME.key \
+        -out $OUTPUT_DIR/$OUTPUT_NAME.csr
+
+    # Sign CSR -> Generate CERT
+    echo "creating CRT.."
+    $OPENSSL_BIN ca \
+        -batch \
+        -config $CONF_DIR/openssl.conf \
+        -days $CRT_EXPIRE \
+        -extensions $OPENSSL_EXT \
+        -in $OUTPUT_DIR/$OUTPUT_NAME.csr \
+        -out $OUTPUT_DIR/$OUTPUT_NAME.crt
+
+    # Convert to p12 (easier handling)
+    echo "converting to p12 format.."
+    $OPENSSL_BIN pkcs12 \
+        -nodes \
+        -export \
+        -in $OUTPUT_DIR/$OUTPUT_NAME.crt \
+        -inkey $OUTPUT_DIR/$OUTPUT_NAME.key \
+        -certfile $CA_DIR/ca.crt \
+        -out $OUTPUT_DIR/$OUTPUT_NAME.p12 \
+        -passout pass:
+
+    # show cert
+    showCert $OUTPUT_DIR/$OUTPUT_NAME.crt
+}
+
+# Revoke existing CRT
+# ----------------------------------------------
+function revokeCert(){
+    # Set Common Name
+    export KEY_CN="$(printf "$CLIENT_COMMON_NAME" $1)"
+
+    print_heading "Revoking Cert [$1].."
+    $OPENSSL_BIN ca \
+        -config $CONF_DIR/openssl.conf \
+        -revoke $2
+
+    # Re-Create CRL
+    createCRL
+}
+
+# Revoke existing Client CRT
+# ----------------------------------------------
+function revokeClientCert(){
+    # client not exists ?
+    if [ ! -f "$CLIENT_DIR/$1/client.crt" ]; then
+        echo "Client Configuration [$1] not exists!"
+        exit 1
+    fi
+
+    revokeCert $1 "$CLIENT_DIR/$1/client.crt"
+}
+
+# Revoke existing Server CRT
+# ----------------------------------------------
+function revokeServerCert(){
+    # server not exists ?
+    if [ ! -f "$SERVER_DIR/$1/server.crt" ]; then
+        echo "Server Configuration [$1] not exists!"
+        exit 1
+    fi
+
+    revokeCert $1 "$SERVER_DIR/$1/server.crt"
+}
+
+# Create a new client cert
+# ----------------------------------------------
+function addClient(){
+    # client not exists ?
+    if [ -s "$CLIENT_DIR/$1/client.crt" ]; then
+        echo "Client Configuration [$1] already exists!"
+        exit 1
+    fi
+
+    print_heading "Generating Client Cert [$1]"
+
+    # create new client certificate
+    createCert $1 "client_cert" "client" $CLIENT_DIR
+}
+
+# Create a new server cert
+# ----------------------------------------------
+function addServer(){
+    # server not exists ?
+    if [ -s "$SERVER_DIR/$1/server.crt" ]; then
+        echo "Server Configuration [$1] already exists!"
+        exit 1
+    fi
+
+    print_heading "Generating Server Cert [$1]"
+
+    # create new client certificate
+    createCert $1 "server_cert" "server" $SERVER_DIR
+}
+
+# Create CA structure
+# ----------------------------------------------
+function initCA(){
     # directory already exists ?
-    if [ -d "$CA_DIR" ] || [ -d "$SRV_DIR" ]; then
+    if [ -d "$CA_DIR" ] || [ -d "$SERVER_DIR" ]; then
         echo "Configuration $1 already exists!"
         exit 1
     else
         # create config dir
         echo "Creating Directory Structure.."
         mkdir $CA_DIR
-        mkdir $SRV_DIR
+        mkdir $ICA_DIR
+        mkdir $SERVER_DIR
         mkdir $CLIENT_DIR
     fi
 
     print_heading "Initializing CA [$1]"
-
-    # HMAC auth key setup
-    echo "Generating TLS Auth Key.."
-    $OVPN_BIN --genkey --secret $SRV_DIR/tls-auth.key
 
     # Set Common Name
     export KEY_CN="$(printf "$CA_COMMON_NAME" $1)"
@@ -130,131 +311,90 @@ function init(){
 
     # Create CA
     print_heading "Generating CA.."
-    $OPENSSL_BIN req -days $CA_EXPIRE -nodes -new -x509 -keyout $CA_DIR/ca.key -out $CA_DIR/ca.crt -config $CONF_DIR/openssl.conf
+    $OPENSSL_BIN req \
+        -config $CONF_DIR/openssl.conf \
+        -days $CA_EXPIRE \
+        -nodes \
+        -new \
+        -x509 \
+        -keyout $CA_DIR/ca.key \
+        -out $CA_DIR/ca.crt 
 
     # show CA cert
     showCert $CA_DIR/ca.crt
 
     # Create CRL
     createCRL
+}
 
-    # Set Common Name
-    export KEY_CN="$(printf "$SRV_COMMON_NAME" $1)"
+# Create CA, Server Cert, TLS Auth Key, dhparams
+# ----------------------------------------------
+function initOpenvpnServer(){
+    # setup ca
+    initCA $1
 
-    # Create Private Key + CSR
-    print_heading "Generating Server Cert.."
-    $OPENSSL_BIN req -nodes -new -keyout $SRV_DIR/server.key -out $SRV_DIR/server.csr -config $CONF_DIR/openssl.conf
-    $OPENSSL_BIN ca -batch -extensions server -days $CRT_EXPIRE -out $SRV_DIR/server.crt -in $SRV_DIR/server.csr -config $CONF_DIR/openssl.conf
+    # add initial server cert
+    addServer "openvpn"
 
-    # Convert to p12 (easier handling)
-    echo "Converting to p12 format.."
-    $OPENSSL_BIN pkcs12 -nodes -export -out $SRV_DIR/server.p12 -inkey $SRV_DIR/server.key -in $SRV_DIR/server.crt -certfile $CA_DIR/ca.crt -passout pass:
-
-    # show server cert
-    showCert $SRV_DIR/server.crt
+    # HMAC auth key setup
+    echo "Generating TLS Auth Key.."
+    $OVPN_BIN --genkey --secret $CA_DIR/tls-auth.key
 
     # Diffie hellman parameters
     print_heading "Generating DHParams"
     echo "Even Modern Systems (XEON/Core i) will take around 10-40min to complete!"
-    $OPENSSL_BIN dhparam -out $SRV_DIR/dh$KEY_SIZE.pem $KEY_SIZE
+    $OPENSSL_BIN dhparam -out $CA_DIR/dh$KEY_SIZE.pem $KEY_SIZE
 
     # success!
     print_heading "READY!"
 }
 
-# Create new Client CRT
-# ----------------------------------------------
-function addClient(){
-    # client not exists ?
-    if [ -s "$CLIENT_DIR/$1/client.crt" ]; then
-        echo "Client Configuration [$1] already exists!"
-        exit 1
-    fi
-
-    print_heading "Generating Client Cert [$1]"
-
-    # create client dir
-    mkdir -p $CLIENT_DIR/$1
-
-    # Set Clients Common Name
-    export KEY_CN="$(printf "$CLIENT_COMMON_NAME" $1)"
-
-    echo $KEY_COUNTRY
-    echo $KEY_PROVINCE
-    echo $KEY_CITY
-    echo $KEY_ORG
-    echo $KEY_OU
-    echo $KEY_CN
-    echo $KEY_EMAIL
-
-    # Create Private Key + CSR
-    echo "Generating Private KEY + CSR.."
-    $OPENSSL_BIN req -days $CRT_EXPIRE -nodes -new -keyout $CLIENT_DIR/$1/client.key -out $CLIENT_DIR/$1/client.csr -config $CONF_DIR/openssl.conf
-
-    # Sign CSR -> Generate CERT
-    echo "Creating CRT.."
-    $OPENSSL_BIN ca -batch -extensions usr_cert -days $CRT_EXPIRE -out $CLIENT_DIR/$1/client.crt -in $CLIENT_DIR/$1/client.csr -config $CONF_DIR/openssl.conf
-
-    # Convert to p12 (easier handling)
-    echo "Converting to p12 format.."
-    $OPENSSL_BIN pkcs12 -nodes -export -out $CLIENT_DIR/$1/client.p12 -inkey $CLIENT_DIR/$1/client.key -in $CLIENT_DIR/$1/client.crt -certfile $CA_DIR/ca.crt -passout pass:
-
-    # Copy TLS Auth
-    cp $SRV_DIR/tls-auth.key $CLIENT_DIR/$1/tls-auth.key
-
-    # show cert
-    showCert $CLIENT_DIR/$1/client.crt
-}
-
-# Revoke existing Client CRT
-# ----------------------------------------------
-function revokeClient(){
-    # client not exists ?
-    if [ ! -f "$CLIENT_DIR/$1/client.crt" ]; then
-        echo "Client Configuration [$1] not exists!"
-        exit 1
-    fi
-
-    # Set Clients Common Name
-    export KEY_CN="$(printf "$CLIENT_COMMON_NAME" $1)"
-
-    print_heading "Revoking Client-Cert [$1].."
-    $OPENSSL_BIN ca -revoke $CLIENT_DIR/$1/client.crt -config $CONF_DIR/openssl.conf
-
-    # Re-Create CRL
-    createCRL
-}
 
 # Command Dispatching
 # ---------------------------------------
-case "$1" in
-    init)
-        init $2
+case "$1:$2" in
+    init:ca)
+        initCA $3
         exit 0
     ;;
 
-    add-client)
-        addClient $2
+    init:openvpn)
+        initOpenvpnServer $3
         exit 0
     ;;
 
-    revoke-client)
-        revokeClient $2
+    client:add)
+        addClient $3
         exit 0
     ;;
 
-    show)
+    client:revoke)
+        revokeClientCert $3
+        exit 0
+    ;;
+
+    server:add)
+        addServer $3
+        exit 0
+    ;;
+
+    server:revoke)
+        revokeServerCert $3
+        exit 0
+    ;;
+
+    show:*)
         showCert $2
         exit 0
     ;;
 
-    verify)
+    verify:*)
         verifyCert $2
         exit 0
     ;;
 
     *)
-        echo "$USAGE_INFO"
+        show_usage
         exit 1
     ;;
 esac

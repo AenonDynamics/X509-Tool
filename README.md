@@ -1,14 +1,17 @@
 X509 PKI Setup Utility
 ==========================
 
-Single-File-Utlity to create X509 Certificates/PKI Structure for your OpenVPN Server or **any** TLS based communication.
+Single-File-Utlity to create X509v3 Certificates/PKI Structure for **any** TLS based communication.
 
 ## Features ##
 
 * Single File CLI Tool
-* [Create CA, TLS Auth, Server Cert, DH-Params](docs/Usage.md#init) **in one Step**
-* [Add Clients](docs/Usage.md#add-client)
-* [Revoke Clients](docs/Usage.md#revoke-client)
+* [Create CA](docs/Usage.md#init-ca)
+* [Create CA, TLS Auth, Server Cert, DH-Params](docs/Usage.md#init-openvpn) **in one step for OpenVPN**
+* [Add Clients](docs/Usage.md#client-add)
+* [Revoke Clients](docs/Usage.md#client-revoke)
+* [Add Server](docs/Usage.md#server-add)
+* [Revoke Clients](docs/Usage.md#server-revoke)
 * [View Certificates](docs/Usage.md#view-certificate)
 * [Verify Certificates](docs/Usage.md#verify-certificate)
 * Maintain Certificate revocation list
@@ -27,8 +30,7 @@ See [AenonDynamics/CPR](https://github.com/AenonDynamics/CPR#debian-packages)
 
 ### 2. Install the Package via APT ###
 
-```
-apt-get update
+```bash
 apt-get install x509-tool
 ```
 
@@ -43,7 +45,7 @@ Such tasks doesn't require a bunch of intermdiate CAs or multiple server certifi
 
 In most cases (e.g. OpenVPN or Webserver Auth) your typical PKI will look like this:
 
-![Demo](assets/structure.png)
+![Demo](assets/openvpn_structure.png)
 
 * 1 Certificate Authority
 * 1 Server 
@@ -64,22 +66,21 @@ The **X506-Tool** will create the following directory structure in your working 
    |     |- serial (certificate serial number counter)
    |     |- crl.pem (Certificate revocation list)
    |
-   |- srv (the Server Certificate, Private Key, TLS Auth Key, DH-Params)
-   |     |- server.crt
-   |     |- server.key
-   |     |- tls-auth.key
-   |     |- server.csr
-   |     |- dhparam4096.pem
+   |- servers (the Server Certificate, Private Key)
+   |     |- <server-name-a>
+   |     |- <server-name-b>
+   |         |- server.crt
+   |         |- server.key
+   |         |- server.csr
+   |         |- server.p12
    |
    |- clients (Storage of the Client Certificates)
-        |- <client-name-a>
-        |- <client-name-b>
-            |- client.crt
-            |- client.key
-            |- client.p12 (Client Cert+Key + CA Cert as single file)
-            |- tls-auth.key
-            |- client.csr
-
+         |- <client-name-a>
+         |- <client-name-b>
+             |- client.crt
+             |- client.key
+             |- client.p12 (Client Cert+Key + CA Cert as single file)
+             |- client.csr
 ```
 
 ### OpenSSL Configuration ###
@@ -137,28 +138,23 @@ Please refer to the [Usage/Available Commands](docs/Usage.md) Section for genera
 
 ```bash
 # Step 1
-# create the CA (Crt+Key), Server (Crt+Key), Diffie-Hellman Parameter and TLS-Auth Key
-# "MyCA" is the name of your CA/Server Cert (Variable SRV_COMMON_NAME, CA_COMMON_NAME)
-$ x509-tool init MyCA
+# create the CA (Crt+Key)
+# "MyCA" is the common name of your CA Cert (Variable CA_COMMON_NAME)
+$ x509-tool init ca MyCA
 
 # Step 2
+# Create your first Server named "server1"
+$ x509-tool server add server1
+
+# Step 3
 # Create your first Client named "user1"
-$ x509-tool add-client user1
+$ x509-tool client add user1
 ```
 
 ## Security Recommendations ##
 
 * Keep your **Private Keys secret** - especially the CA Key.
 * Consider to **encrypt** your Private Keys by a strong passphrase using AES256
-
-### Ciphers ###
-
-The following ciphers are used by default:
-
-* 4096 Bit [RSA Keys](https://en.wikipedia.org/wiki/RSA_(cryptosystem))
-* 4096 Bit [Diffie-Hellman](https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange) Parameters
-* AES256-CBC Symmetric Packet Encryption (Context: OpenVPN)
-* SHA256 Message Digest (Context: OpenVPN)
 
 ## Contributing ##
 Contributors are welcome! Even if you are not familiar with X509 certificates or bash scripting you can help to improve the documentation!
@@ -177,4 +173,5 @@ A set of useful resources
 * [NIST Recommendation for Key Management](http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57Pt3r1.pdf) | PDF
 
 ## License ##
-X509-Tool is OpenSource and licensed under the Terms of [The MIT License (X11)](http://opensource.org/licenses/MIT). You're welcome to contribute!
+X509-Tool is OpenSource and licensed under the Terms of [Mozilla Public License 2.0](https://opensource.org/licenses/MPL-2.0). 
+You're welcome to contribute!

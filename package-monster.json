@@ -1,9 +1,9 @@
 {
     "name": "x509-tool",
-    "version": "1.0.1",
+    "version": "2.0.0",
     "package-monster": "0.2.0",
     "description": "Manage X509 Certificates used for Client-based-Authentication",
-    "license": "MIT",
+    "license": "MPL-2.0",
     "author": "Andi Dittrich <opensource@aenon-dynamics.com>",
     "website": "https://github.com/AenonDynamics/X509-Tool",
     "bugs": "https://github.com/AenonDynamics/X509-Tool/issues",
@@ -14,7 +14,7 @@
     "debian": {
 
         "section": "utils",
-        "priority": "extra",
+        "priority": "optional",
 
         "dependencies": [
             "openvpn",
