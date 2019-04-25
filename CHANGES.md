@@ -1,5 +1,9 @@
 ## Branch 2.X ##
 
+### 2.0.1 ###
+
+* Bugfix: Allow whitespaces in certificate common-name
+
 ### 2.0.0 ###
 
 * Added: initialization for generic CAs (not openvpn related)
