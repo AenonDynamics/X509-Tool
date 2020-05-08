@@ -5,7 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 # --
-# Copyright 2015-2019 Andi Dittrich <https://aenon-dynamics.com>
+# Copyright 2015-2020 Andi Dittrich <https://aenon-dynamics.com>
 # ----------------------------------------------------------------------
 # __  ______   ___   ___      _____           _
 # \ \/ / ___| / _ \ / _ \    |_   _|__   ___ | |
@@ -18,7 +18,7 @@
 #
 # ----------------------------------------------------------------------
 
-VERSION="2.0.1"
+VERSION="2.1.0"
 
 show_usage(){
     cat << EOF
@@ -27,13 +27,19 @@ Usage: x509-tool <command> [args...]
   Commands:
     init ca <ca-name>           Initializes basic ca directory structure
     init openvpn <ca-name>      Initializes CA + tls auth, dhparams and single server
-    client add <cname>          Add a new client certificate
-    client revoke <cname>       Revoke a client certificate
-    server add <cname>          Add a new server certificate
-    server revoke <cname>       Revoke a server vertificate
+    
     verify <cert-file>          Verifies a certificate against CRL
     show <cert-file>            Display a certificate as text
 
+    client add <cname>          Add a new client certificate
+    client revoke <cname>       Revoke a client certificate
+    
+    server add <cname>          Add a new server certificate
+    server revoke <cname>       Revoke a server vertificate
+    
+    host add <cname>            Add a new host certificate
+    host revoke <cname>         Revoke a host vertificate
+    
     --help                      Displays this help
     --version                   Displays version
 EOF
@@ -92,6 +98,7 @@ export CA_DIR="$WORKING_DIR/ca"
 export ICA_DIR="$WORKING_DIR/ica"
 export SERVER_DIR="$WORKING_DIR/servers"
 export CLIENT_DIR="$WORKING_DIR/clients"
+export HOST_DIR="$WORKING_DIR/hosts"
 
 # Simple Header
 # ----------------------------------------------
@@ -157,6 +164,36 @@ function verifyCert(){
         $1
 }
 
+# Generate CommonName based on type/template
+# ----------------------------------------------
+function resolveCommonName(){
+
+    # export common name as env
+    case "$2" in
+        client_cert)
+            export KEY_CN=$(printf $CLIENT_COMMON_NAME "$1")
+        ;;
+
+        server_cert)
+            export KEY_CN=$(printf $SRV_COMMON_NAME "$1")
+        ;;
+
+        host_cert)
+            export KEY_CN=$(printf $HOST_COMMON_NAME "$1")
+        ;;
+
+        v3_ica)
+            export KEY_CN=$(printf $ICA_COMMON_NAME "$1")
+        ;;
+
+        *)
+            # unknown
+            echo "error: unknown openssl extension <$2>"
+            exit 1
+        ;;
+    esac
+}
+
 # Create new Cert
 # ----------------------------------------------
 function createCert(){
@@ -179,8 +216,8 @@ function createCert(){
     CERT_FILE="$OUTPUT_DIR/$OUTPUT_NAME.crt"
     CERT_P12="$OUTPUT_DIR/$OUTPUT_NAME.p12"
 
-    # export common name as env
-    export KEY_CN=$(printf $CLIENT_COMMON_NAME "$1")
+    # resolve common name based on extension
+    resolveCommonName "$1" "$OPENSSL_EXT"
 
     # Show info
     echo $KEY_COUNTRY
@@ -229,8 +266,6 @@ function createCert(){
 # Revoke existing CRT
 # ----------------------------------------------
 function revokeCert(){
-    # Set Common Name
-    export KEY_CN="$(printf "$CLIENT_COMMON_NAME" $1)"
 
     print_heading "Revoking Cert [$1].."
     $OPENSSL_BIN ca \
@@ -250,6 +285,9 @@ function revokeClientCert(){
         exit 1
     fi
 
+    # resolve common name based on extension
+    resolveCommonName $1 "client_cert"
+
     revokeCert "$1" "$CLIENT_DIR/$1/client.crt"
 }
 
@@ -262,8 +300,27 @@ function revokeServerCert(){
         exit 1
     fi
 
+    # resolve common name based on extension
+    resolveCommonName $1 "server_cert"
+
     revokeCert "$1" "$SERVER_DIR/$1/server.crt"
 }
+
+# Revoke existing host CRT
+# ----------------------------------------------
+function revokeHostCert(){
+    # host not exists ?
+    if [ ! -f "$HOST_DIR/$1/host.crt" ]; then
+        echo "Host Configuration [$1] not exists!"
+        exit 1
+    fi
+
+    # resolve common name based on extension
+    resolveCommonName $1 "host_cert"
+
+    revokeCert "$1" "$HOST_DIR/$1/host.crt"
+}
+
 
 # Create a new client cert
 # ----------------------------------------------
@@ -295,6 +352,21 @@ function addServer(){
     createCert "$1" "server_cert" "server" "$SERVER_DIR"
 }
 
+# Create a new host cert
+# ----------------------------------------------
+function addHost(){
+    # host not exists ?
+    if [ -s "$HOST_DIR/$1/host.crt" ]; then
+        echo "Host Configuration [$1] already exists!"
+        exit 1
+    fi
+
+    print_heading "Generating Host Cert [$1]"
+
+    # create new client certificate
+    createCert "$1" "host_cert" "host" "$HOST_DIR"
+}
+
 # Create CA structure
 # ----------------------------------------------
 function initCA(){
@@ -309,6 +381,7 @@ function initCA(){
         mkdir $ICA_DIR
         mkdir $SERVER_DIR
         mkdir $CLIENT_DIR
+        mkdir $HOST_DIR
     fi
 
     print_heading "Initializing CA [$1]"
@@ -392,6 +465,16 @@ case "$1:$2" in
 
     server:revoke)
         revokeServerCert "$3"
+        exit 0
+    ;;
+
+    host:add)
+        addHost "$3"
+        exit 0
+    ;;
+
+    host:revoke)
+        revokeHostCert "$3"
         exit 0
     ;;
 

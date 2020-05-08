@@ -9,6 +9,8 @@ Usage + Commands
 * [client revoke](#client-revoke)
 * [server add](#server-add)
 * [server revoke](#server-revoke)
+* [host add](#host-add)
+* [host revoke](#host-revoke)
 * [show](#view-certificate)
 * [verify](#verify-certificate)
 

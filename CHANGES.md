@@ -1,5 +1,11 @@
 ## Branch 2.X ##
 
+### 2.1.0 ###
+
+* Added: support for host/node certificates (client+server extended usage)
+* Bugfix: `subjectAltName` was missing in server certs (required for self signed webserver auth) - new default `DNS:<COMMON_NAME>`
+* Bugfix: `CLIENT_COMMON_NAME` template overrides other templates
+
 ### 2.0.1 ###
 
 * Bugfix: Allow whitespaces in certificate common-name
