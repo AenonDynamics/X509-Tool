@@ -1,7 +1,7 @@
 X509v3 Certificate Management Utility
 ======================================
 
-Single-File-Utlity to create X509v3 Certificates/PKI Structure for **any** TLS based communication.
+**single-file-utlity to manage X509v3 certificate based public-key-infrastructures (PKI)**
 
 ## Features ##
 
@@ -24,13 +24,22 @@ Usage: x509-tool <command> [args...]
   Commands:
     init ca <ca-name>           Initializes basic ca directory structure
     init openvpn <ca-name>      Initializes CA + tls auth, dhparams and single server
-    client add <cname>          Add a new client certificate
-    client revoke <cname>       Revoke a client certificate
-    server add <cname>          Add a new server certificate
-    server revoke <cname>       Revoke a server vertificate
+    
     verify <cert-file>          Verifies a certificate against CRL
     show <cert-file>            Display a certificate as text
 
+    client add <cname>          Add a new client certificate
+    client revoke <cname>       Revoke a client certificate
+    
+    server add <cname>          Add a new server certificate
+    server revoke <cname>       Revoke a server vertificate
+    
+    host add <cname>            Add a new host certificate
+    host revoke <cname>         Revoke a host vertificate
+
+    code add <cname>            Add a new codesigning certificate
+    code revoke <cname>         Revoke a codesigning certificate
+    
     --help                      Displays this help
     --version                   Displays version
 ```
@@ -58,8 +67,7 @@ apt-get install x509-tool
 
 **The X509-Tool is designed as [easy-rsa](https://github.com/OpenVPN/easy-rsa) replacement**
 
-The primary objective is the creation of a simple, bulletproof tool which allows users to setup Certificates for OpenVPN or Webserver/TLS Authentication.
-Such tasks doesn't require a bunch of intermdiate CAs or multiple server certificates.
+The primary objective is the creation of a simple, bulletproof tool which allows users to setup Certificates for TLS Authentication (Webservers, Databases, OpenVPN).
 
 ### Basic CA Structure ###
 
@@ -68,7 +76,7 @@ In most cases (e.g. OpenVPN or Webserver Auth) your typical PKI will look like t
 ![Demo](assets/openvpn_structure.png)
 
 * 1 Certificate Authority
-* 1 Server 
+* 1 to N Servers
 * 1 to N Clients
 * No Intermediate CA
 * Cerificate Depths of **1**
@@ -147,9 +155,12 @@ export KEY_OU="OVPN-PKI Testing"
 # -----------------------------------------------
 
 # The placeholder %s is replaced by the second CLI argument
-CA_COMMON_NAME="CA-%s"
-SRV_COMMON_NAME="SRV-%s"
-CLIENT_COMMON_NAME="CLIENT-%s"
+CA_COMMON_NAME="CA_%s"
+ICA_COMMON_NAME="ICA_%s"
+SRV_COMMON_NAME="SRV_%s"
+CLIENT_COMMON_NAME="CLIENT_%s"
+HOST_COMMON_NAME="HOST_%s"
+CODESIGNING_COMMON_NAME="CODE_%s"
 ```
 
 ### Getting Started ###
@@ -164,11 +175,11 @@ $ x509-tool init ca MyCA
 
 # Step 2
 # Create your first Server named "server1"
-$ x509-tool server add server1
+$ x509-tool server add server1.mydomain.tld
 
 # Step 3
 # Create your first Client named "user1"
-$ x509-tool client add user1
+$ x509-tool client add user1.users.mydomain.tld
 ```
 
 ## Security Recommendations ##

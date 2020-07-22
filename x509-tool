@@ -39,6 +39,9 @@ Usage: x509-tool <command> [args...]
     
     host add <cname>            Add a new host certificate
     host revoke <cname>         Revoke a host vertificate
+
+    code add <cname>            Add a new codesigning certificate
+    code revoke <cname>         Revoke a codesigning certificate
     
     --help                      Displays this help
     --version                   Displays version
@@ -73,7 +76,7 @@ BASEDIR="$( cd "$( dirname "$(realpath $BASH_SOURCE[0])" )" && pwd )"
 OVPN_BIN=/usr/sbin/openvpn
 OPENSSL_BIN=/usr/bin/openssl
 CONF_DIR=/etc/x509-tool
-#CONF_DIR=$BASEDIR
+CONF_DIR=$BASEDIR
 
 # command provided ?
 if [ -z "$1" ]; then
@@ -99,6 +102,7 @@ export ICA_DIR="$WORKING_DIR/ica"
 export SERVER_DIR="$WORKING_DIR/servers"
 export CLIENT_DIR="$WORKING_DIR/clients"
 export HOST_DIR="$WORKING_DIR/hosts"
+export CSIGN_DIR="$WORKING_DIR/codesign"
 
 # Simple Header
 # ----------------------------------------------
@@ -182,6 +186,10 @@ function resolveCommonName(){
             export KEY_CN=$(printf $HOST_COMMON_NAME "$1")
         ;;
 
+        codesigning_cert)
+            export KEY_CN=$(printf $CODESIGNING_COMMON_NAME "$1")
+        ;;
+
         v3_ica)
             export KEY_CN=$(printf $ICA_COMMON_NAME "$1")
         ;;
@@ -204,8 +212,11 @@ function createCert(){
     # output filename
     OUTPUT_NAME=$3
 
+    # resolve common name based on extension
+    resolveCommonName "$1" "$OPENSSL_EXT"
+
     # <storage_dir>/<common_name>
-    OUTPUT_DIR=$4/$1
+    OUTPUT_DIR=$4/$KEY_CN
 
     # create output dir
     mkdir -p "$OUTPUT_DIR"
@@ -215,9 +226,6 @@ function createCert(){
     CERT_REQ="$OUTPUT_DIR/$OUTPUT_NAME.csr"
     CERT_FILE="$OUTPUT_DIR/$OUTPUT_NAME.crt"
     CERT_P12="$OUTPUT_DIR/$OUTPUT_NAME.p12"
-
-    # resolve common name based on extension
-    resolveCommonName "$1" "$OPENSSL_EXT"
 
     # Show info
     echo $KEY_COUNTRY
@@ -242,6 +250,7 @@ function createCert(){
     echo "creating CRT.."
     $OPENSSL_BIN ca \
         -batch \
+        -notext \
         -config $CONF_DIR/openssl.conf \
         -days $CRT_EXPIRE \
         -extensions $OPENSSL_EXT \
@@ -321,6 +330,21 @@ function revokeHostCert(){
     revokeCert "$1" "$HOST_DIR/$1/host.crt"
 }
 
+# Revoke existing code signing CRT
+# ----------------------------------------------
+function revokeCodesigningCert(){
+    # host not exists ?
+    if [ ! -f "$CSIGN_DIR/$1/host.crt" ]; then
+        echo "Code signing Configuration [$1] not exists!"
+        exit 1
+    fi
+
+    # resolve common name based on extension
+    resolveCommonName $1 "codesigning_cert"
+
+    revokeCert "$1" "$CSIGN_DIR/$1/sign.crt"
+}
+
 
 # Create a new client cert
 # ----------------------------------------------
@@ -367,6 +391,21 @@ function addHost(){
     createCert "$1" "host_cert" "host" "$HOST_DIR"
 }
 
+# Create a new codesigning cert
+# ----------------------------------------------
+function addCodesigning(){
+    # host not exists ?
+    if [ -s "$CSIGN_DIR/$1/sign.crt" ]; then
+        echo "Code signing Configuration [$1] already exists!"
+        exit 1
+    fi
+
+    print_heading "Generating Code signing Cert [$1]"
+
+    # create new client certificate
+    createCert "$1" "codesigning_cert" "sign" "$CSIGN_DIR"
+}
+
 # Create CA structure
 # ----------------------------------------------
 function initCA(){
@@ -382,6 +421,7 @@ function initCA(){
         mkdir $SERVER_DIR
         mkdir $CLIENT_DIR
         mkdir $HOST_DIR
+        mkdir $CSIGN_DIR
     fi
 
     print_heading "Initializing CA [$1]"
@@ -475,6 +515,16 @@ case "$1:$2" in
 
     host:revoke)
         revokeHostCert "$3"
+        exit 0
+    ;;
+
+    code:add)
+        addCodesigning "$3"
+        exit 0
+    ;;
+
+    code:revoke)
+        revokeCodesigningCert "$3"
         exit 0
     ;;
 

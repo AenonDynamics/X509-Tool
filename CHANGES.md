@@ -1,5 +1,11 @@
 ## Branch 2.X ##
 
+### 2.2.0 ###
+
+* Added: support for code-signing certificates
+* Changed: removed plain-text output from certificate files `-notext`
+* Bugfix: output directory name doesn't use the full common-name based on the configuration - only second name argument was used
+
 ### 2.1.0 ###
 
 * Added: support for host/node certificates (client+server extended usage)
