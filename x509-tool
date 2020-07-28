@@ -18,7 +18,7 @@
 #
 # ----------------------------------------------------------------------
 
-VERSION="2.1.0"
+VERSION="2.2.1"
 
 show_usage(){
     cat << EOF
@@ -76,7 +76,6 @@ BASEDIR="$( cd "$( dirname "$(realpath $BASH_SOURCE[0])" )" && pwd )"
 OVPN_BIN=/usr/sbin/openvpn
 OPENSSL_BIN=/usr/bin/openssl
 CONF_DIR=/etc/x509-tool
-CONF_DIR=$BASEDIR
 
 # command provided ?
 if [ -z "$1" ]; then

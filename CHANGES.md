@@ -1,6 +1,6 @@
 ## Branch 2.X ##
 
-### 2.2.0 ###
+### 2.2.1 ###
 
 * Added: support for code-signing certificates
 * Changed: removed plain-text output from certificate files `-notext`
