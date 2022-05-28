@@ -1,6 +1,6 @@
 {
     "name": "x509-tool",
-    "version": "2.2.1",
+    "version": "2.2.2",
     "package-monster": "0.2.0",
     "description": "Manage X509 Certificates used for Client-based-Authentication",
     "license": "MPL-2.0",

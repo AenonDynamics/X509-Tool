@@ -1,5 +1,10 @@
 ## Branch 2.X ##
 
+### 2.2.2 ###
+
+* Bugfix: added `clientAuth` to codesigning key usage
+* Bugfix: code-signing cert revocation pre-check failed
+
 ### 2.2.1 ###
 
 * Added: support for code-signing certificates
