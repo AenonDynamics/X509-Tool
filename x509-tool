@@ -5,7 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 # --
-# Copyright 2015-2022 Andi Dittrich <https://aenon-dynamics.com>
+# Copyright 2015-2023 Andi Dittrich <https://aenon-dynamics.com>
 # ----------------------------------------------------------------------
 # __  ______   ___   ___      _____           _
 # \ \/ / ___| / _ \ / _ \    |_   _|__   ___ | |
@@ -18,33 +18,36 @@
 #
 # ----------------------------------------------------------------------
 
-VERSION="2.2.2"
+VERSION="2.3.0"
 
 show_usage(){
     cat << EOF
 Usage: x509-tool <command> [args...]
 
   Commands:
-    init ca <ca-name>           Initializes basic ca directory structure
-    init openvpn <ca-name>      Initializes CA + tls auth, dhparams and single server
+    init ca <ca-name>             Initializes basic ca directory structure
+    init openvpn <ca-name>        Initializes CA + tls auth, dhparams and single server
     
-    verify <cert-file>          Verifies a certificate against CRL
-    show <cert-file>            Display a certificate as text
+    verify <cert-file>            Verifies a certificate against CRL
+    show <cert-file>              Display a certificate as text
 
-    client add <cname>          Add a new client certificate
-    client revoke <cname>       Revoke a client certificate
+    client add <cname>            Add a new client certificate
+    client revoke <cname>         Revoke a client certificate
     
-    server add <cname>          Add a new server certificate
-    server revoke <cname>       Revoke a server vertificate
+    server add <cname>            Add a new server certificate
+    server revoke <cname>         Revoke a server vertificate
     
-    host add <cname>            Add a new host certificate
-    host revoke <cname>         Revoke a host vertificate
+    host add <cname>              Add a new host certificate
+    host revoke <cname>           Revoke a host vertificate
 
-    code add <cname>            Add a new codesigning certificate
-    code revoke <cname>         Revoke a codesigning certificate
+    code add <cname>              Add a new codesigning certificate
+    code revoke <cname>           Revoke a codesigning certificate
+
+    smime add <cname> <email>     Add a new s/mime signing certificate
+    smime revoke <email>          Revoke a s/mime signing certificate
     
-    --help                      Displays this help
-    --version                   Displays version
+    --help                        Displays this help
+    --version                     Displays version
 EOF
     exit 0
 }
@@ -102,6 +105,7 @@ export SERVER_DIR="$WORKING_DIR/servers"
 export CLIENT_DIR="$WORKING_DIR/clients"
 export HOST_DIR="$WORKING_DIR/hosts"
 export CSIGN_DIR="$WORKING_DIR/codesign"
+export SMIME_DIR="$WORKING_DIR/smime"
 
 # Simple Header
 # ----------------------------------------------
@@ -169,33 +173,38 @@ function verifyCert(){
 
 # Generate CommonName based on type/template
 # ----------------------------------------------
-function resolveCommonName(){
+function resolveCertParams(){
 
     # export common name as env
-    case "$2" in
+    case "$1" in
         client_cert)
-            export KEY_CN=$(printf $CLIENT_COMMON_NAME "$1")
+            export KEY_CN=$(printf $CLIENT_COMMON_NAME "$2")
         ;;
 
         server_cert)
-            export KEY_CN=$(printf $SRV_COMMON_NAME "$1")
+            export KEY_CN=$(printf $SRV_COMMON_NAME "$2")
         ;;
 
         host_cert)
-            export KEY_CN=$(printf $HOST_COMMON_NAME "$1")
+            export KEY_CN=$(printf $HOST_COMMON_NAME "$2")
         ;;
 
         codesigning_cert)
-            export KEY_CN=$(printf $CODESIGNING_COMMON_NAME "$1")
+            export KEY_CN=$(printf $CODESIGNING_COMMON_NAME "$2")
+        ;;
+
+        smime_cert)
+            export KEY_EMAIL=$(printf $SMIME_EMAIL_NAME "$3")
+            export KEY_CN=$(printf $SMIME_COMMON_NAME "$2")
         ;;
 
         v3_ica)
-            export KEY_CN=$(printf $ICA_COMMON_NAME "$1")
+            export KEY_CN=$(printf $ICA_COMMON_NAME "$2")
         ;;
 
         *)
             # unknown
-            echo "error: unknown openssl extension <$2>"
+            echo "error: unknown openssl extension <$1>"
             exit 1
         ;;
     esac
@@ -206,16 +215,13 @@ function resolveCommonName(){
 function createCert(){
    
     # openssl extension
-    OPENSSL_EXT=$2
+    OPENSSL_EXT=$1
 
     # output filename
-    OUTPUT_NAME=$3
-
-    # resolve common name based on extension
-    resolveCommonName "$1" "$OPENSSL_EXT"
+    OUTPUT_NAME=$2
 
     # <storage_dir>/<common_name>
-    OUTPUT_DIR=$4/$KEY_CN
+    OUTPUT_DIR=$3/$KEY_CN
 
     # create output dir
     mkdir -p "$OUTPUT_DIR"
@@ -294,7 +300,7 @@ function revokeClientCert(){
     fi
 
     # resolve common name based on extension
-    resolveCommonName $1 "client_cert"
+    resolveCertParams "client_cert" "$1"
 
     revokeCert "$1" "$CLIENT_DIR/$1/client.crt"
 }
@@ -309,7 +315,7 @@ function revokeServerCert(){
     fi
 
     # resolve common name based on extension
-    resolveCommonName $1 "server_cert"
+    resolveCertParams "server_cert" "$1"
 
     revokeCert "$1" "$SERVER_DIR/$1/server.crt"
 }
@@ -324,7 +330,7 @@ function revokeHostCert(){
     fi
 
     # resolve common name based on extension
-    resolveCommonName $1 "host_cert"
+    resolveCertParams "host_cert" "$1"
 
     revokeCert "$1" "$HOST_DIR/$1/host.crt"
 }
@@ -339,9 +345,24 @@ function revokeCodesigningCert(){
     fi
 
     # resolve common name based on extension
-    resolveCommonName $1 "codesigning_cert"
+    resolveCertParams "codesigning_cert" "$1"
 
     revokeCert "$1" "$CSIGN_DIR/$1/sign.crt"
+}
+
+# Revoke existing SMIME signing CRT
+# ----------------------------------------------
+function revokeSMIMECert(){
+    # host not exists ?
+    if [ ! -f "$SMIME_DIR/$1/smime.crt" ]; then
+        echo "S/MIME signing Configuration [$1] not exists!"
+        exit 1
+    fi
+
+    # resolve common name based on extension
+    resolveCertParams "smime_cert" "$1"
+
+    revokeCert "$1" "$SMIME_DIR/$1/smime.crt"
 }
 
 
@@ -356,8 +377,11 @@ function addClient(){
 
     print_heading "Generating Client Cert [$1]"
 
+    # resolve common name based on extension
+    resolveCertParams "client_cert" "$1"
+
     # create new client certificate
-    createCert "$1" "client_cert" "client" "$CLIENT_DIR"
+    createCert "client_cert" "client" "$CLIENT_DIR"
 }
 
 # Create a new server cert
@@ -371,8 +395,11 @@ function addServer(){
 
     print_heading "Generating Server Cert [$1]"
 
+    # resolve common name based on extension
+    resolveCertParams "server_cert" "$1"
+
     # create new client certificate
-    createCert "$1" "server_cert" "server" "$SERVER_DIR"
+    createCert "server_cert" "server" "$SERVER_DIR"
 }
 
 # Create a new host cert
@@ -386,8 +413,11 @@ function addHost(){
 
     print_heading "Generating Host Cert [$1]"
 
+    # resolve common name based on extension
+    resolveCertParams "host_cert" "$1"
+
     # create new client certificate
-    createCert "$1" "host_cert" "host" "$HOST_DIR"
+    createCert "host_cert" "host" "$HOST_DIR"
 }
 
 # Create a new codesigning cert
@@ -401,8 +431,29 @@ function addCodesigning(){
 
     print_heading "Generating Code signing Cert [$1]"
 
+    # resolve common name based on extension
+    resolveCertParams "codesigning_cert" "$1"
+
     # create new client certificate
-    createCert "$1" "codesigning_cert" "sign" "$CSIGN_DIR"
+    createCert "codesigning_cert" "sign" "$CSIGN_DIR"
+}
+
+# Create a new codesigning cert
+# ----------------------------------------------
+function addSMIME(){
+    # host not exists ?
+    if [ -s "$SMIME_DIR/$1/sign.crt" ]; then
+        echo "SMIME signing Configuration [$1] already exists!"
+        exit 1
+    fi
+
+    print_heading "Generating SMIME Cert [$1]"
+
+    # resolve common name based on extension
+    resolveCertParams "smime_cert" "$1" "$2"
+
+    # create new client certificate
+    createCert "smime_cert" "smime" "$SMIME_DIR"
 }
 
 # Create CA structure
@@ -524,6 +575,16 @@ case "$1:$2" in
 
     code:revoke)
         revokeCodesigningCert "$3"
+        exit 0
+    ;;
+
+    smime:add)
+        addSMIME "$3" "$4"
+        exit 0
+    ;;
+
+    smime:revoke)
+        revokeSMIMECert "$3"
         exit 0
     ;;
 

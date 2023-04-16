@@ -1,5 +1,9 @@
 ## Branch 2.X ##
 
+### 2.3.0 ###
+
+* Added: support for smime certificates
+
 ### 2.2.2 ###
 
 * Bugfix: added `clientAuth` to codesigning key usage
