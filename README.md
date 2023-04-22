@@ -1,7 +1,7 @@
 X509v3 Certificate Management Utility
 ======================================
 
-**single-file-utlity to manage X509v3 certificate based public-key-infrastructures (PKI)**
+**manage X509v3 certificate based public-key-infrastructures (PKI)**
 
 ## Features ##
 
@@ -22,26 +22,32 @@ X509v3 Certificate Management Utility
 Usage: x509-tool <command> [args...]
 
   Commands:
-    init ca <ca-name>           Initializes basic ca directory structure
-    init openvpn <ca-name>      Initializes CA + tls auth, dhparams and single server
-    
-    verify <cert-file>          Verifies a certificate against CRL
-    show <cert-file>            Display a certificate as text
+    ca init <ca-name>             Initializes basic ca directory structure
 
-    client add <cname>          Add a new client certificate
-    client revoke <cname>       Revoke a client certificate
-    
-    server add <cname>          Add a new server certificate
-    server revoke <cname>       Revoke a server vertificate
-    
-    host add <cname>            Add a new host certificate
-    host revoke <cname>         Revoke a host vertificate
+    verify <cert-file>            Verifies a certificate against CRL
+    show <cert-file>              Display a certificate as text
 
-    code add <cname>            Add a new codesigning certificate
-    code revoke <cname>         Revoke a codesigning certificate
+    client add <cname>            Add a new client certificate
+    client revoke <cname>         Revoke a client certificate
     
-    --help                      Displays this help
-    --version                   Displays version
+    server add <cname>            Add a new server certificate
+    server revoke <cname>         Revoke a server vertificate
+    
+    host add <cname>              Add a new host certificate
+    host revoke <cname>           Revoke a host vertificate
+
+    code add <cname>              Add a new codesigning certificate
+    code revoke <cname>           Revoke a codesigning certificate
+
+    smime add <cname> <email>     Add a new s/mime signing certificate
+    smime revoke <email>          Revoke a s/mime signing certificate
+    
+    ica add <cname>               Add a new intermediate certificate authority and copy current config
+
+    openvpn init <ca-name>        Initializes CA + tls auth, dhparams and single server
+
+    --help                        Displays this help
+    --version                     Displays version
 ```
 
 
@@ -67,7 +73,7 @@ apt-get install x509-tool
 
 **The X509-Tool is designed as [easy-rsa](https://github.com/OpenVPN/easy-rsa) replacement**
 
-The primary objective is the creation of a simple, bulletproof tool which allows users to setup Certificates for TLS Authentication (Webservers, Databases, OpenVPN).
+The primary objective is the creation of a simple, bulletproof tool which allows users to setup Certificates for TLS Authentication (Webservers, Databases, Mailservers, OpenVPN).
 
 ### Basic CA Structure ###
 
@@ -134,14 +140,8 @@ By default, the tool prefixes the common-names with their task. The placeholder 
 # OpenSSL Related Configuration
 # -----------------------------------------------
 
-# Recommended Key Size: >= 3072 bit
+# Recommended Key Size: >= 3072 bit for rsa
 export KEY_SIZE=4096
-
-# In how many days should the root CA key expire?
-export CA_EXPIRE=3650
-
-# In how many days should certificates expire?
-export CRT_EXPIRE=3650
 
 # Your Cert Params
 export KEY_COUNTRY="DE"
@@ -151,16 +151,30 @@ export KEY_ORG="My Company"
 export KEY_EMAIL="pki-test@yourdomain.tld"
 export KEY_OU="OVPN-PKI Testing"
 
+# x509 tool settings
+# -----------------------------------------------
+
+# In how many days should the root CA key expire?
+CA_EXPIRE=3650
+
+# In how many days should certificates expire?
+CRT_EXPIRE=3650
+
+# certificate naming scheme: "generic" (client.crt) or "cn" ***based on common name (<cn>.crt)
+CRT_SCHEME="cn"
+
 # Certificate Common Name Templates
 # -----------------------------------------------
 
 # The placeholder %s is replaced by the second CLI argument
 CA_COMMON_NAME="CA_%s"
 ICA_COMMON_NAME="ICA_%s"
-SRV_COMMON_NAME="SRV_%s"
-CLIENT_COMMON_NAME="CLIENT_%s"
-HOST_COMMON_NAME="HOST_%s"
-CODESIGNING_COMMON_NAME="CODE_%s"
+SRV_COMMON_NAME="%s"
+CLIENT_COMMON_NAME="%s"
+HOST_COMMON_NAME="%s"
+CODESIGNING_COMMON_NAME="%s"
+SMIME_COMMON_NAME="%s"
+SMIME_EMAIL_NAME="%s"
 ```
 
 ### Getting Started ###
@@ -171,7 +185,7 @@ Please refer to the [Usage/Available Commands](docs/Usage.md) Section for genera
 # Step 1
 # create the CA (Crt+Key)
 # "MyCA" is the common name of your CA Cert (Variable CA_COMMON_NAME)
-$ x509-tool init ca MyCA
+$ x509-tool ca init MyCA
 
 # Step 2
 # Create your first Server named "server1"

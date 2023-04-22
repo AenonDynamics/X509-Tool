@@ -13,21 +13,20 @@
 #  /  \ ___) | |_| |\__, |_____| | (_) | (_) | |
 # /_/\_\____/ \___/   /_/      |_|\___/ \___/|_|
 #
-# manage X509 certificates used for cert-based-authentication
+# manage X509 certificates used for tls/cert-based-authentication
 # https://github.com/AenonDynamics/X509-Tool
 #
 # ----------------------------------------------------------------------
 
-VERSION="2.3.0"
+VERSION="3.0.0"
 
 show_usage(){
     cat << EOF
 Usage: x509-tool <command> [args...]
 
   Commands:
-    init ca <ca-name>             Initializes basic ca directory structure
-    init openvpn <ca-name>        Initializes CA + tls auth, dhparams and single server
-    
+    ca init <ca-name>             Initializes basic ca directory structure
+
     verify <cert-file>            Verifies a certificate against CRL
     show <cert-file>              Display a certificate as text
 
@@ -46,6 +45,10 @@ Usage: x509-tool <command> [args...]
     smime add <cname> <email>     Add a new s/mime signing certificate
     smime revoke <email>          Revoke a s/mime signing certificate
     
+    ica add <cname>               Add a new intermediate certificate authority and copy current config
+
+    openvpn init <ca-name>        Initializes CA + tls auth, dhparams and single server
+
     --help                        Displays this help
     --version                     Displays version
 EOF
@@ -63,8 +66,8 @@ EOF
 }
 
 # simple processing
-[ "$1" = "--help" ] && show_usage
-[ "$1" = "--version" ] && show_version
+[ "${1}" = "--help" ] && show_usage
+[ "${1}" = "--version" ] && show_version
 
 # Exit on Error
 set -e
@@ -73,102 +76,61 @@ set -e
 WORKING_DIR="$(pwd)"
 
 # basedir
-BASEDIR="$( cd "$( dirname "$(realpath $BASH_SOURCE[0])" )" && pwd )"
+BASEDIR="$( cd "$( dirname "$(realpath ${BASH_SOURCE}[0])" )" && pwd )"
 
 # locations
 OVPN_BIN=/usr/sbin/openvpn
 OPENSSL_BIN=/usr/bin/openssl
 CONF_DIR=/etc/x509-tool
+LIB_DIR=/usr/share/x509-tool
 
 # command provided ?
-if [ -z "$1" ]; then
+if [ -z "${1}" ]; then
     show_usage
 fi
 
 # cert config available ?
-if [ ! -f "$WORKING_DIR/cert.conf" ]; then
-    echo "Error: Configuration file cert.conf not found in current directory! Do you have created it yet?"
-    echo "An example file is available in $CONF_DIR/cert.example.conf"
+if [ ! -f "${WORKING_DIR}/cert.conf" ]; then
+    log_error "Error: Configuration file cert.conf not found in current directory! Do you have created it yet?"
+    log_error "An example file is available in ${CONF_DIR}/cert.example.conf"
     exit 1
 fi
 
 # Load cert config/parameter
-source "$WORKING_DIR/cert.conf"
+source "${WORKING_DIR}/cert.conf"
+
+# load bash functions
+source ${LIB_DIR}/bash-functions
+
+# load command extensions
+for x509ext in ${LIB_DIR}/*.sh; do source ${x509ext}; done
 
 # VARS
 # ----------------------------------------------
 
+# directory structure
+CA_DIRNAME="ca"
+ICA_DIRNAME="ica"
+SERVER_DIRNAME="server"
+CLIENT_DIRNAME="client"
+HOST_DIRNAME="host"
+CSIGN_DIRNAME="codesign"
+SMIME_DIRNAME="smime"
+
 # Export Config Dirs
-export CA_DIR="$WORKING_DIR/ca"
-export ICA_DIR="$WORKING_DIR/ica"
-export SERVER_DIR="$WORKING_DIR/servers"
-export CLIENT_DIR="$WORKING_DIR/clients"
-export HOST_DIR="$WORKING_DIR/hosts"
-export CSIGN_DIR="$WORKING_DIR/codesign"
-export SMIME_DIR="$WORKING_DIR/smime"
-
-# Simple Header
-# ----------------------------------------------
-print_heading(){
-    if [ $# -ne 1 ]; then
-        return 1
-    fi
-
-    # blue
-    echo -e '\x1B[1;34m'
-    echo "__________________________________________________________________________"
-    echo ""
-    echo " $1"
-    echo "__________________________________________________________________________"
-    echo -e '\x1B[0m'
-}
+export CA_DIR="${WORKING_DIR}/${CA_DIRNAME}"
+export ICA_DIR="${WORKING_DIR}/${ICA_DIRNAME}"
+export SERVER_DIR="${WORKING_DIR}/${SERVER_DIRNAME}"
+export CLIENT_DIR="${WORKING_DIR}/${CLIENT_DIRNAME}"
+export HOST_DIR="${WORKING_DIR}/${HOST_DIRNAME}"
+export CSIGN_DIR="${WORKING_DIR}/${CSIGN_DIRNAME}"
+export SMIME_DIR="${WORKING_DIR}/${SMIME_DIRNAME}"
 
 # Check environment
 # ----------------------------------------------
-function environmentCheck(){
-    :
-}
-
-# Display Cert in clear-text
-# ----------------------------------------------
-function showCert(){
-    print_heading "Certificate [$1]"
-    $OPENSSL_BIN x509 \
-        -in "$1" \
-        -text \
-        -noout
-}
-
-# (Re-)Create the Certificate revocation list
-# ----------------------------------------------
-function createCRL(){
-    print_heading "Certificate revocation list [$1]"
-
-    # generate crl
-    $OPENSSL_BIN ca \
-        -batch \
-        -config "$CONF_DIR/openssl.conf" \
-        -gencrl \
-        -out "$CA_DIR/crl.pem"
-
-    # show crl
-    $OPENSSL_BIN crl \
-        -in "$CA_DIR/crl.pem" \
-        -noout \
-        -text
-
-    # join ca+crl for verification
-    cat "$CA_DIR/crl.pem" "$CA_DIR/ca.crt" > "$CA_DIR/ca-crl-verify.pem"
-}
-
-# Verifying Cert including Certificate revocation list
-# ----------------------------------------------
-function verifyCert(){
-    print_heading "Verifying Certificate [$1]"
-    $OPENSSL_BIN verify \
-        -crl_check \
-        -CAfile "$CA_DIR/ca-crl-verify.pem" \
-        $1
+function environment_check(){
+    # ca exists ?
+    [ -f "${CA_DIR}/ca.crt" ] || panic "certificate authority doesn't exist"
 }
 
 # Generate CommonName based on type/template
@@ -176,425 +138,275 @@ function verifyCert(){
 function resolveCertParams(){
 
     # export common name as env
-    case "$1" in
+    case "${1}" in
         client_cert)
-            export KEY_CN=$(printf $CLIENT_COMMON_NAME "$2")
+            export KEY_CN=$(printf ${CLIENT_COMMON_NAME} "${2}")
+            CRT_FILENAME="client"
+            CRT_STORAGE_DIR="${CLIENT_DIR}"
         ;;
 
         server_cert)
-            export KEY_CN=$(printf $SRV_COMMON_NAME "$2")
+            export KEY_CN=$(printf ${SRV_COMMON_NAME} "${2}")
+            CRT_FILENAME="server"
+            CRT_STORAGE_DIR="${SERVER_DIR}"
         ;;
 
         host_cert)
-            export KEY_CN=$(printf $HOST_COMMON_NAME "$2")
+            export KEY_CN=$(printf ${HOST_COMMON_NAME} "${2}")
+            CRT_FILENAME="host"
+            CRT_STORAGE_DIR="${HOST_DIR}"
         ;;
 
         codesigning_cert)
-            export KEY_CN=$(printf $CODESIGNING_COMMON_NAME "$2")
+            export KEY_CN=$(printf ${CODESIGNING_COMMON_NAME} "${2}")
+            CRT_FILENAME="code"
+            CRT_STORAGE_DIR="${CSIGN_DIR}"
         ;;
 
         smime_cert)
-            export KEY_EMAIL=$(printf $SMIME_EMAIL_NAME "$3")
-            export KEY_CN=$(printf $SMIME_COMMON_NAME "$2")
+            export KEY_EMAIL=$(printf ${SMIME_EMAIL_NAME} "${3}")
+            export KEY_CN=$(printf ${SMIME_COMMON_NAME} "${2}")
+            CRT_FILENAME="smime"
+            CRT_STORAGE_DIR="${SMIME_DIR}"
         ;;
 
-        v3_ica)
-            export KEY_CN=$(printf $ICA_COMMON_NAME "$2")
+        ica_cert)
+            export KEY_OU="${3}"
+            export KEY_CN=$(printf ${ICA_COMMON_NAME} "${2}")
+            CRT_FILENAME="ca"
+            CRT_STORAGE_DIR="${ICA_DIR}"
         ;;
 
         *)
             # unknown
-            echo "error: unknown openssl extension <$1>"
-            exit 1
+            panic "error: unknown openssl extension <${1}>"
         ;;
     esac
+
+    # cert naming scheme
+    if [ "${CRT_SCHEME}" == "cn" ]; then
+        CRT_FILENAME="${KEY_CN}"
+    fi
+
+    # derived crt output path
+    CRT_OUTPUT_NAME="${CRT_STORAGE_DIR}/${KEY_CN}/${CRT_FILENAME}"
+}
+
+
+# Display Cert in clear-text
+# ----------------------------------------------
+function cert_show(){
+    print_heading "Certificate [${1}]"
+    ${OPENSSL_BIN} x509 \
+        -in "${1}" \
+        -text \
+        -noout
+}
+
+# (Re-)Create the Certificate revocation list
+# ----------------------------------------------
+function crl_create(){
+    print_heading "Certificate revocation list [${1}]"
+
+    # generate crl
+    ${OPENSSL_BIN} ca \
+        -batch \
+        -config "${CONF_DIR}/openssl.conf" \
+        -gencrl \
+        -out "${CA_DIR}/crl.pem"
+
+    # show crl
+    ${OPENSSL_BIN} crl \
+        -in "${CA_DIR}/crl.pem" \
+        -noout \
+        -text
+
+    # join ca+crl for verification
+    cat "${CA_DIR}/crl.pem" "${CA_DIR}/ca.crt" > "${CA_DIR}/ca-crl-verify.pem"
+}
+
+# Verifying Cert including Certificate revocation list
+# ----------------------------------------------
+function cert_verify(){
+    print_heading "Verifying Certificate [${1}]"
+    ${OPENSSL_BIN} verify \
+        -crl_check \
+        -CAfile "${CA_DIR}/ca-crl-verify.pem" \
+        ${1}
 }
 
 # Create new Cert
 # ----------------------------------------------
-function createCert(){
+function cert_create(){
+
+    # cert already exists ?
+    [ -s "${CRT_OUTPUT_NAME}.crt" ] && panic "cert [${KEY_CN}] already exists!"
+
+    print_heading "creating certificate for [${KEY_CN}]"
    
     # openssl extension
-    OPENSSL_EXT=$1
-
-    # output filename
-    OUTPUT_NAME=$2
-
-    # <storage_dir>/<common_name>
-    OUTPUT_DIR=$3/$KEY_CN
+    OPENSSL_EXT=${1}
 
     # create output dir
-    mkdir -p "$OUTPUT_DIR"
-
-    # cert filenames
-    CERT_KEY="$OUTPUT_DIR/$OUTPUT_NAME.key"
-    CERT_REQ="$OUTPUT_DIR/$OUTPUT_NAME.csr"
-    CERT_FILE="$OUTPUT_DIR/$OUTPUT_NAME.crt"
-    CERT_P12="$OUTPUT_DIR/$OUTPUT_NAME.p12"
+    mkdir -p "${CRT_STORAGE_DIR}/${KEY_CN}"
 
     # Show info
-    echo $KEY_COUNTRY
-    echo $KEY_PROVINCE
-    echo $KEY_CITY
-    echo $KEY_ORG
-    echo $KEY_OU
-    echo $KEY_CN
-    echo $KEY_EMAIL
+    log_info ${KEY_COUNTRY}
+    log_info ${KEY_PROVINCE}
+    log_info ${KEY_CITY}
+    log_info ${KEY_ORG}
+    log_info ${KEY_OU}
+    log_info ${KEY_CN}
+    log_info ${KEY_EMAIL}
 
     # Create Private Key + CSR
-    echo "generating private-key and signing request.."
-    $OPENSSL_BIN req \
-        -config "$CONF_DIR/openssl.conf" \
-        -days $CRT_EXPIRE \
+    log_info "generating private-key and signing request.."
+    ${OPENSSL_BIN} req \
+        -config "${CONF_DIR}/openssl.conf" \
+        -days ${CRT_EXPIRE} \
         -nodes \
         -new \
-        -keyout "$CERT_KEY" \
-        -out "$CERT_REQ"
+        -keyout "${CRT_OUTPUT_NAME}.key" \
+        -out "${CRT_OUTPUT_NAME}.csr" || panic "error: cannot create private key + csr"
 
     # Sign CSR -> Generate CERT
-    echo "creating CRT.."
-    $OPENSSL_BIN ca \
+    log_info "creating cert.."
+    ${OPENSSL_BIN} ca \
         -batch \
         -notext \
-        -config $CONF_DIR/openssl.conf \
-        -days $CRT_EXPIRE \
-        -extensions $OPENSSL_EXT \
-        -in "$CERT_REQ" \
-        -out "$CERT_FILE"
+        -config ${CONF_DIR}/openssl.conf \
+        -days ${CRT_EXPIRE} \
+        -extensions ${OPENSSL_EXT} \
+        -in "${CRT_OUTPUT_NAME}.csr" \
+        -out "${CRT_OUTPUT_NAME}.crt" || panic "error: cannot sign cert"
 
     # Convert to p12 (easier handling)
-    echo "converting to p12 format.."
-    $OPENSSL_BIN pkcs12 \
+    log_info "converting cert to p12 format.."
+    ${OPENSSL_BIN} pkcs12 \
         -nodes \
         -export \
-        -in "$CERT_FILE" \
-        -inkey "$CERT_KEY" \
-        -certfile "$CA_DIR/ca.crt" \
-        -out "$CERT_P12" \
+        -in "${CRT_OUTPUT_NAME}.crt" \
+        -inkey "${CRT_OUTPUT_NAME}.key" \
+        -certfile "${CA_DIR}/ca.crt" \
+        -out "${CRT_OUTPUT_NAME}.p12" \
         -passout pass:
 
     # show cert
-    showCert "$CERT_FILE"
+    cert_show "${CRT_OUTPUT_NAME}.crt"
 }
 
 # Revoke existing CRT
 # ----------------------------------------------
-function revokeCert(){
+function cert_revoke(){
 
-    print_heading "Revoking Cert [$1].."
-    $OPENSSL_BIN ca \
-        -config "$CONF_DIR/openssl.conf" \
-        -revoke "$2"
+    # cert already exists ?
+    [ ! -f "${CRT_OUTPUT_NAME}.crt" ] && panic "cert [${KEY_CN}] already exists!"
+
+    print_heading "revoking cert [${1}].."
+    ${OPENSSL_BIN} ca \
+        -config "${CONF_DIR}/openssl.conf" \
+        -revoke "${CRT_OUTPUT_NAME}.crt" || panic "error: unable to revoke cert"
 
     # Re-Create CRL
-    createCRL
-}
-
-# Revoke existing Client CRT
-# ----------------------------------------------
-function revokeClientCert(){
-    # client not exists ?
-    if [ ! -f "$CLIENT_DIR/$1/client.crt" ]; then
-        echo "Client Configuration [$1] not exists!"
-        exit 1
-    fi
-
-    # resolve common name based on extension
-    resolveCertParams "client_cert" "$1"
-
-    revokeCert "$1" "$CLIENT_DIR/$1/client.crt"
-}
-
-# Revoke existing Server CRT
-# ----------------------------------------------
-function revokeServerCert(){
-    # server not exists ?
-    if [ ! -f "$SERVER_DIR/$1/server.crt" ]; then
-        echo "Server Configuration [$1] not exists!"
-        exit 1
-    fi
-
-    # resolve common name based on extension
-    resolveCertParams "server_cert" "$1"
-
-    revokeCert "$1" "$SERVER_DIR/$1/server.crt"
-}
-
-# Revoke existing host CRT
-# ----------------------------------------------
-function revokeHostCert(){
-    # host not exists ?
-    if [ ! -f "$HOST_DIR/$1/host.crt" ]; then
-        echo "Host Configuration [$1] not exists!"
-        exit 1
-    fi
-
-    # resolve common name based on extension
-    resolveCertParams "host_cert" "$1"
-
-    revokeCert "$1" "$HOST_DIR/$1/host.crt"
-}
-
-# Revoke existing code signing CRT
-# ----------------------------------------------
-function revokeCodesigningCert(){
-    # host not exists ?
-    if [ ! -f "$CSIGN_DIR/$1/sign.crt" ]; then
-        echo "Code signing Configuration [$1] not exists!"
-        exit 1
-    fi
-
-    # resolve common name based on extension
-    resolveCertParams "codesigning_cert" "$1"
-
-    revokeCert "$1" "$CSIGN_DIR/$1/sign.crt"
-}
-
-# Revoke existing SMIME signing CRT
-# ----------------------------------------------
-function revokeSMIMECert(){
-    # host not exists ?
-    if [ ! -f "$SMIME_DIR/$1/smime.crt" ]; then
-        echo "S/MIME signing Configuration [$1] not exists!"
-        exit 1
-    fi
-
-    # resolve common name based on extension
-    resolveCertParams "smime_cert" "$1"
-
-    revokeCert "$1" "$SMIME_DIR/$1/smime.crt"
-}
-
-
-# Create a new client cert
-# ----------------------------------------------
-function addClient(){
-    # client not exists ?
-    if [ -s "$CLIENT_DIR/$1/client.crt" ]; then
-        echo "Client Configuration [$1] already exists!"
-        exit 1
-    fi
-
-    print_heading "Generating Client Cert [$1]"
-
-    # resolve common name based on extension
-    resolveCertParams "client_cert" "$1"
-
-    # create new client certificate
-    createCert "client_cert" "client" "$CLIENT_DIR"
-}
-
-# Create a new server cert
-# ----------------------------------------------
-function addServer(){
-    # server not exists ?
-    if [ -s "$SERVER_DIR/$1/server.crt" ]; then
-        echo "Server Configuration [$1] already exists!"
-        exit 1
-    fi
-
-    print_heading "Generating Server Cert [$1]"
-
-    # resolve common name based on extension
-    resolveCertParams "server_cert" "$1"
-
-    # create new client certificate
-    createCert "server_cert" "server" "$SERVER_DIR"
-}
-
-# Create a new host cert
-# ----------------------------------------------
-function addHost(){
-    # host not exists ?
-    if [ -s "$HOST_DIR/$1/host.crt" ]; then
-        echo "Host Configuration [$1] already exists!"
-        exit 1
-    fi
-
-    print_heading "Generating Host Cert [$1]"
-
-    # resolve common name based on extension
-    resolveCertParams "host_cert" "$1"
-
-    # create new client certificate
-    createCert "host_cert" "host" "$HOST_DIR"
-}
-
-# Create a new codesigning cert
-# ----------------------------------------------
-function addCodesigning(){
-    # host not exists ?
-    if [ -s "$CSIGN_DIR/$1/sign.crt" ]; then
-        echo "Code signing Configuration [$1] already exists!"
-        exit 1
-    fi
-
-    print_heading "Generating Code signing Cert [$1]"
-
-    # resolve common name based on extension
-    resolveCertParams "codesigning_cert" "$1"
-
-    # create new client certificate
-    createCert "codesigning_cert" "sign" "$CSIGN_DIR"
-}
-
-# Create a new codesigning cert
-# ----------------------------------------------
-function addSMIME(){
-    # host not exists ?
-    if [ -s "$SMIME_DIR/$1/sign.crt" ]; then
-        echo "SMIME signing Configuration [$1] already exists!"
-        exit 1
-    fi
-
-    print_heading "Generating SMIME Cert [$1]"
-
-    # resolve common name based on extension
-    resolveCertParams "smime_cert" "$1" "$2"
-
-    # create new client certificate
-    createCert "smime_cert" "smime" "$SMIME_DIR"
-}
-
-# Create CA structure
-# ----------------------------------------------
-function initCA(){
-    # directory already exists ?
-    if [ -d "$CA_DIR" ] || [ -d "$SERVER_DIR" ]; then
-        echo "Configuration $1 already exists!"
-        exit 1
-    else
-        # create config dir
-        echo "Creating Directory Structure.."
-        mkdir $CA_DIR
-        mkdir $ICA_DIR
-        mkdir $SERVER_DIR
-        mkdir $CLIENT_DIR
-        mkdir $HOST_DIR
-        mkdir $CSIGN_DIR
-    fi
-
-    print_heading "Initializing CA [$1]"
-
-    # Set Common Name
-    export KEY_CN="$(printf "$CA_COMMON_NAME" "$1")"
-
-    # Create Index +  Serial file
-    echo "01" > "$CA_DIR/serial"
-    touch "$CA_DIR/db.txt"
-    touch "$CA_DIR/db.txt.attr"
-
-    # Create CA
-    print_heading "Generating CA.."
-    $OPENSSL_BIN req \
-        -config "$CONF_DIR/openssl.conf" \
-        -days $CA_EXPIRE \
-        -nodes \
-        -new \
-        -x509 \
-        -keyout "$CA_DIR/ca.key" \
-        -out "$CA_DIR/ca.crt"
-
-    # show CA cert
-    showCert "$CA_DIR/ca.crt"
-
-    # Create CRL
-    createCRL
-}
-
-# Create CA, Server Cert, TLS Auth Key, dhparams
-# ----------------------------------------------
-function initOpenvpnServer(){
-    # setup ca
-    initCA "$1"
-
-    # add initial server cert
-    addServer "openvpn-server"
-
-    # HMAC auth key setup
-    echo "Generating TLS Auth Key.."
-    $OVPN_BIN --genkey --secret "$CA_DIR/tls-auth.key"
-
-    # Diffie hellman parameters
-    print_heading "Generating DHParams"
-    echo "Even Modern Systems (XEON/Core i) will take around 10-40min to complete!"
-    $OPENSSL_BIN dhparam -out "$CA_DIR/dh$KEY_SIZE.pem" $KEY_SIZE
-
-    # success!
-    print_heading "READY!"
+    crl_create
 }
 
 
 # Command Dispatching
 # ---------------------------------------
-case "$1:$2" in
-    init:ca)
-        initCA "$3"
+case "${1}:${2}" in
+    ca:init)
+        ca_init "${3}"
         exit 0
     ;;
 
-    init:openvpn)
-        initOpenvpnServer "$3"
+    ica:init)
+        ica_init "${3}" "${4}"
+        exit 0
+    ;;
+
+    openvpn:init)
+        openvpn_init "${3}"
         exit 0
     ;;
 
     client:add)
-        addClient "$3"
+        environment_check
+        resolveCertParams "client_cert" "${3}"
+        cert_create "client_cert"
         exit 0
     ;;
 
     client:revoke)
-        revokeClientCert "$3"
+        environment_check
+        resolveCertParams "client_cert" "${3}"
+        cert_revoke "${3}"
         exit 0
     ;;
 
     server:add)
-        addServer "$3"
+        environment_check
+        resolveCertParams "server_cert" "${3}"
+        cert_create "server_cert"
         exit 0
     ;;
 
     server:revoke)
-        revokeServerCert "$3"
+        environment_check
+        resolveCertParams "server_cert" "${3}"
+        cert_revoke "${3}"
         exit 0
     ;;
 
     host:add)
-        addHost "$3"
+        environment_check
+        resolveCertParams "host_cert" "${3}"
+        cert_create "host_cert"
         exit 0
     ;;
 
     host:revoke)
-        revokeHostCert "$3"
+        environment_check
+        resolveCertParams "host_cert" "${3}"
+        cert_revoke "${3}"
         exit 0
     ;;
 
     code:add)
-        addCodesigning "$3"
+        environment_check
+        resolveCertParams "codesigning_cert" "${3}"
+        cert_create "codesigning_cert"
         exit 0
     ;;
 
     code:revoke)
-        revokeCodesigningCert "$3"
+        environment_check
+        resolveCertParams "codesigning_cert" "${3}"
+        cert_revoke "${3}"
         exit 0
     ;;
 
     smime:add)
-        addSMIME "$3" "$4"
+        environment_check
+        resolveCertParams "smime_cert" "${3}" "${4}"
+        cert_create "smime_cert"
         exit 0
     ;;
 
     smime:revoke)
-        revokeSMIMECert "$3"
+        environment_check
+        resolveCertParams "smime_cert" "${3}"
+        cert_revoke "${3}"
         exit 0
     ;;
 
     show:*)
-        showCert "$2"
+        showCert "${2}"
         exit 0
     ;;
 
     verify:*)
-        verifyCert "$2"
+        verifyCert "${2}"
         exit 0
     ;;
 

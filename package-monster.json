@@ -1,6 +1,6 @@
 {
     "name": "x509-tool",
-    "version": "2.3.0",
+    "version": "3.0.0",
     "package-monster": "0.2.0",
     "description": "Manage X509 Certificates used for Client-based-Authentication",
     "license": "MPL-2.0",
@@ -24,6 +24,25 @@
         "conf": [
             "openssl.conf",
             "cert.example.conf"
+        ],
+
+        "files": [
+            {
+                "src": "lib/bash-functions",
+                "dst": "/usr/share/x509-tool/bash-functions"
+            },
+            {
+                "src": "lib/ca-cert.sh",
+                "dst": "/usr/share/x509-tool/ca-cert.sh"
+            },
+            {
+                "src": "lib/bica-cert.sh",
+                "dst": "/usr/share/x509-tool/ica-cert.sh"
+            },
+            {
+                "src": "lib/openvpn-util.sh",
+                "dst": "/usr/share/x509-tool/openvpn-util.sh"
+            }
         ],
 
         "bin": [

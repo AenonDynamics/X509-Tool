@@ -5,4 +5,3 @@ TODO List
 * Add Lighttpd/Apache/NGINX HTTPS Auth Example
 * Add Automatic Unit Tests (Setup, add, revoke, validate..)
 * Add Option to force Key Encryption
-* Add intermediate CA support
