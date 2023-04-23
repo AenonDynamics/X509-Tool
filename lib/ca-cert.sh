@@ -28,6 +28,9 @@ function ca_init(){
         -key "${CA_DIR}/ca.key" \
         -out "${CA_DIR}/ca.crt"
 
+    # copy ca to chain file
+    cp "${CA_DIR}/ca.crt" "${CA_DIR}/ca-fullchain.pem"
+
     # show CA cert
     cert_show "${CA_DIR}/ca.crt"
 

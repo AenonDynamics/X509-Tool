@@ -1,5 +1,10 @@
 ## Branch 3.X ##
 
+### 3.1.0 ###
+
+* Added: fullchain certificate chain is maintained within intermediate authorities
+* Added: fullchain added `p12` cert files
+
 ### 3.0.0 ###
 
 * Refactored the whole codebase. Methods are splitted into multiple files

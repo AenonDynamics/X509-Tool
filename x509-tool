@@ -18,7 +18,7 @@
 #
 # ----------------------------------------------------------------------
 
-VERSION="3.0.0"
+VERSION="3.1.0"
 
 show_usage(){
     cat << EOF
@@ -26,6 +26,8 @@ Usage: x509-tool <command> [args...]
 
   Commands:
     ca init <ca-name>             Initializes basic ca directory structure
+
+    ica init <cname> <ou>         Add a new intermediate certificate authority and copy current config
 
     verify <cert-file>            Verifies a certificate against CRL
     show <cert-file>              Display a certificate as text
@@ -44,8 +46,6 @@ Usage: x509-tool <command> [args...]
 
     smime add <cname> <email>     Add a new s/mime signing certificate
     smime revoke <email>          Revoke a s/mime signing certificate
-    
-    ica add <cname>               Add a new intermediate certificate authority and copy current config
 
     openvpn init <ca-name>        Initializes CA + tls auth, dhparams and single server
 
@@ -309,7 +309,7 @@ function cert_create(){
         -export \
         -in "${CRT_OUTPUT_NAME}.crt" \
         -inkey "${CRT_OUTPUT_NAME}.key" \
-        -certfile "${CA_DIR}/ca.crt" \
+        -certfile "${CA_DIR}/ca-fullchain.pem" \
         -out "${CRT_OUTPUT_NAME}.p12" \
         -passout pass:
 

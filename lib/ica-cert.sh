@@ -29,5 +29,8 @@ function ica_init(){
     # copy current cert config
     cp "${WORKING_DIR}/cert.conf" "${CRT_STORAGE_DIR}/${KEY_CN}/cert.conf"
 
+    # create cert chain (prepend)
+    cat "${CRT_STORAGE_DIR}/${KEY_CN}/${CA_DIRNAME}/ca.crt" ${CA_DIR}/ca-fullchain.pem > "${CRT_STORAGE_DIR}/${KEY_CN}/${CA_DIRNAME}/ca-fullchain.pem"
+
     log_warning "note: cert.conf has been copied but may needs to be modified!"
 }
