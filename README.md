@@ -140,7 +140,13 @@ By default, the tool prefixes the common-names with their task. The placeholder 
 # OpenSSL Related Configuration
 # -----------------------------------------------
 
-# Recommended Key Size: >= 3072 bit for rsa
+# RSA or EC key ?
+export KEY_TYPE="EC"
+
+# select curve
+export KEY_EC_CURVE="secp384r1"
+
+# RSA keysize - recommended >= 3072
 export KEY_SIZE=4096
 
 # Your Cert Params
@@ -160,21 +166,28 @@ CA_EXPIRE=3650
 # In how many days should certificates expire?
 CRT_EXPIRE=3650
 
-# certificate naming scheme: "generic" (client.crt) or "cn" ***based on common name (<cn>.crt)
+# certificate naming scheme: generic (client.crt) or based on common name (<cn>.crt)
 CRT_SCHEME="cn"
 
 # Certificate Common Name Templates
 # -----------------------------------------------
 
 # The placeholder %s is replaced by the second CLI argument
-CA_COMMON_NAME="CA_%s"
-ICA_COMMON_NAME="ICA_%s"
+CA_COMMON_NAME="%s"
+ICA_COMMON_NAME="%s"
 SRV_COMMON_NAME="%s"
 CLIENT_COMMON_NAME="%s"
 HOST_COMMON_NAME="%s"
 CODESIGNING_COMMON_NAME="%s"
 SMIME_COMMON_NAME="%s"
 SMIME_EMAIL_NAME="%s"
+
+# Development or user based installation
+# -----------------------------------------------
+
+# overrides
+#CONF_DIR=${BASEDIR}
+#LIB_DIR=${BASEDIR}/lib
 ```
 
 ### Getting Started ###
