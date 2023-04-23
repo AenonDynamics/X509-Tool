@@ -36,7 +36,7 @@
                 "dst": "/usr/share/x509-tool/ca-cert.sh"
             },
             {
-                "src": "lib/bica-cert.sh",
+                "src": "lib/ica-cert.sh",
                 "dst": "/usr/share/x509-tool/ica-cert.sh"
             },
             {
