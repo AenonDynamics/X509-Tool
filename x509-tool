@@ -192,6 +192,27 @@ function resolveCertParams(){
     CRT_OUTPUT_NAME="${CRT_STORAGE_DIR}/${KEY_CN}/${CRT_FILENAME}"
 }
 
+# generate new private key
+# ----------------------------------------------
+function cert_genpkey(){
+    print_heading "generating new private ${KEY_TYPE} key"
+
+    # generate EC key ?
+    if [ "${KEY_TYPE}" == "EC" ]; then
+        ${OPENSSL_BIN} genpkey \
+            -algorithm EC \
+            -pkeyopt ec_paramgen_curve:${KEY_EC_CURVE} \
+            -pkeyopt ec_param_enc:named_curve \
+            -out "${1}" || panic "error: cannot create private key"
+
+    # default: RSA
+    else
+        ${OPENSSL_BIN} genpkey \
+            -algorithm RSA \
+            -pkeyopt rsa_keygen_bits:${KEY_SIZE} \
+            -out "${1}" || panic "error: cannot create private key"
+    fi
+}
 
 # Display Cert in clear-text
 # ----------------------------------------------
@@ -259,14 +280,15 @@ function cert_create(){
     log_info ${KEY_CN}
     log_info ${KEY_EMAIL}
 
-    # Create Private Key + CSR
-    log_info "generating private-key and signing request.."
+    # generate private key
+    cert_genpkey "${CRT_OUTPUT_NAME}.key"
+
+    # create CSR
+    log_info "generating signing request.."
     ${OPENSSL_BIN} req \
         -config "${CONF_DIR}/openssl.conf" \
-        -days ${CRT_EXPIRE} \
-        -nodes \
         -new \
-        -keyout "${CRT_OUTPUT_NAME}.key" \
+        -key "${CRT_OUTPUT_NAME}.key" \
         -out "${CRT_OUTPUT_NAME}.csr" || panic "error: cannot create private key + csr"
 
     # Sign CSR -> Generate CERT

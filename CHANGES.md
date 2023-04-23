@@ -3,10 +3,12 @@
 ### 3.0.0 ###
 
 * Refactored the whole codebase. Methods are splitted into multiple files
+* Added: support for elliptic curves
 * Added: support for smime certificates
 * Added: support for intermediate certificate authorities
 * Added: option to use resolved certificate common name as filename (pem,key,crt,csr,p12)
 * Changed: cli commands for `ca` and `openvpn` initialization have changed
+* Changed: default signature algorithm to sha384 (`openssl.conf`)
 
 -------------------------------------------------
 

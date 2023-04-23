@@ -15,15 +15,17 @@ function ca_init(){
     # Set Common Name
     export KEY_CN="$(printf "${CA_COMMON_NAME}" "${1}")"
 
+    # create new private key
+    cert_genpkey "${CA_DIR}/ca.key"
+
     # Create CA
-    print_heading "Generating CA.."
+    print_heading "creating CA.."
     ${OPENSSL_BIN} req \
         -config "${CONF_DIR}/openssl.conf" \
         -days ${CA_EXPIRE} \
-        -nodes \
         -new \
         -x509 \
-        -keyout "${CA_DIR}/ca.key" \
+        -key "${CA_DIR}/ca.key" \
         -out "${CA_DIR}/ca.crt"
 
     # show CA cert
