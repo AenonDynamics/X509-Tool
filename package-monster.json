@@ -1,8 +1,8 @@
 {
     "name": "x509-tool",
-    "version": "3.1.0",
+    "version": "3.2.0",
     "package-monster": "0.2.0",
-    "description": "Manage X509 Certificates used for Client-based-Authentication",
+    "description": "Manage X509 Certificates used for Client-based-Authentication (mTLS)",
     "license": "MPL-2.0",
     "author": "Andi Dittrich <opensource@aenon-dynamics.com>",
     "website": "https://github.com/AenonDynamics/X509-Tool",

@@ -16,7 +16,7 @@ function ca_init(){
     export KEY_CN="$(printf "${CA_COMMON_NAME}" "${1}")"
 
     # create new private key
-    cert_genpkey "${CA_DIR}/ca.key"
+    cert_genpkey "${CA_DIR}/ca.key" "${CA_PASS_TYPE}"
 
     # Create CA
     print_heading "creating CA.."

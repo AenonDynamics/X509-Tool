@@ -5,7 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 # --
-# Copyright 2015-2023 Andi Dittrich <https://aenon-dynamics.com>
+# Copyright 2015-2025 Andi Dittrich <https://aenon-dynamics.com>
 # ----------------------------------------------------------------------
 # __  ______   ___   ___      _____           _
 # \ \/ / ___| / _ \ / _ \    |_   _|__   ___ | |
@@ -18,7 +18,7 @@
 #
 # ----------------------------------------------------------------------
 
-VERSION="3.1.0"
+VERSION="3.2.0"
 
 show_usage(){
     cat << EOF
@@ -89,16 +89,6 @@ if [ -z "${1}" ]; then
     show_usage
 fi
 
-# cert config available ?
-if [ ! -f "${WORKING_DIR}/cert.conf" ]; then
-    log_error "Error: Configuration file cert.conf not found in current directory! Do you have created it yet?"
-    log_error "An example file is available in ${CONF_DIR}/cert.example.conf"
-    exit 1
-fi
-
-# Load cert config/parameter
-source "${WORKING_DIR}/cert.conf"
-
 # load bash functions
 source ${LIB_DIR}/bash-functions
 
@@ -129,8 +119,21 @@ export SMIME_DIR="${WORKING_DIR}/${SMIME_DIRNAME}"
 # Check environment
 # ----------------------------------------------
 function environment_check(){
+
+    # cert config available ?
+    if [ ! -f "${WORKING_DIR}/cert.conf" ]; then
+        log_error "Error: Configuration file cert.conf not found in current directory! Do you have created it yet?"
+        log_error "An example file is available in ${CONF_DIR}/cert.example.conf"
+        exit 1
+    fi
+    
+    # Load cert config/parameter
+    source "${WORKING_DIR}/cert.conf"
+    
     # ca exists ?
-    [ -f "${CA_DIR}/ca.crt" ] || panic "certificate authority doesn't exist"
+    if [ "${1}" != "noca" ]; then
+        [ -f "${CA_DIR}/ca.crt" ] || panic "certificate authority doesn't exist"
+    fi
 }
 
 # Generate CommonName based on type/template
@@ -201,6 +204,7 @@ function cert_genpkey(){
     if [ "${KEY_TYPE}" == "EC" ]; then
         ${OPENSSL_BIN} genpkey \
             -algorithm EC \
+            -pass "${2}" \
             -pkeyopt ec_paramgen_curve:${KEY_EC_CURVE} \
             -pkeyopt ec_param_enc:named_curve \
             -out "${1}" || panic "error: cannot create private key"
@@ -209,6 +213,7 @@ function cert_genpkey(){
     else
         ${OPENSSL_BIN} genpkey \
             -algorithm RSA \
+            -pass "${2}" \
             -pkeyopt rsa_keygen_bits:${KEY_SIZE} \
             -out "${1}" || panic "error: cannot create private key"
     fi
@@ -281,7 +286,7 @@ function cert_create(){
     log_info ${KEY_EMAIL}
 
     # generate private key
-    cert_genpkey "${CRT_OUTPUT_NAME}.key"
+    cert_genpkey "${CRT_OUTPUT_NAME}.key" "${PKEY_PASS_TYPE}"
 
     # create CSR
     log_info "generating signing request.."
@@ -299,19 +304,20 @@ function cert_create(){
         -config ${CONF_DIR}/openssl.conf \
         -days ${CRT_EXPIRE} \
         -extensions ${OPENSSL_EXT} \
+        -passin "${CA_PASS_TYPE}" \
         -in "${CRT_OUTPUT_NAME}.csr" \
         -out "${CRT_OUTPUT_NAME}.crt" || panic "error: cannot sign cert"
 
     # Convert to p12 (easier handling)
     log_info "converting cert to p12 format.."
     ${OPENSSL_BIN} pkcs12 \
-        -nodes \
         -export \
         -in "${CRT_OUTPUT_NAME}.crt" \
         -inkey "${CRT_OUTPUT_NAME}.key" \
         -certfile "${CA_DIR}/ca-fullchain.pem" \
         -out "${CRT_OUTPUT_NAME}.p12" \
-        -passout pass:
+        -passin "${PKEY_PASS_TYPE}" \
+        -passout "${P12_PASS_TYPE}"
 
     # show cert
     cert_show "${CRT_OUTPUT_NAME}.crt"
@@ -338,16 +344,19 @@ function cert_revoke(){
 # ---------------------------------------
 case "${1}:${2}" in
     ca:init)
+        environment_check "noca"
         ca_init "${3}"
         exit 0
     ;;
 
     ica:init)
+        environment_check "noca"
         ica_init "${3}" "${4}"
         exit 0
     ;;
 
     openvpn:init)
+        environment_check "noca"
         openvpn_init "${3}"
         exit 0
     ;;
@@ -423,12 +432,13 @@ case "${1}:${2}" in
     ;;
 
     show:*)
-        showCert "${2}"
+        cert_show "${2}"
         exit 0
     ;;
 
     verify:*)
-        verifyCert "${2}"
+        environment_check
+        cert_verify "${2}"
         exit 0
     ;;
 

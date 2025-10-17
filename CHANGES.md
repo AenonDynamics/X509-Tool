@@ -1,5 +1,15 @@
 ## Branch 3.X ##
 
+### 3.2.0 ###
+
+* Added: option to set p12 password type via `P12_PASS_TYPE`
+* Added: option to set private key password type via `PKEY_PASS_TYPE`
+* Added: option to set ca private key password type via `CA_PASS_TYPE`
+* Changed: added `critical` attribute to `S/MIME` key usage
+* Changed: added `clientAuth` to `S/MIME` key usage
+* Changed: removed deprecated `-nodes` option from pkcs12 generation
+* Bugfix: show/verify commands were broken due to refactoring
+
 ### 3.1.0 ###
 
 * Added: fullchain certificate chain is maintained within intermediate authorities

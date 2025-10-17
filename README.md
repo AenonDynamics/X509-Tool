@@ -1,7 +1,7 @@
 X509v3 Certificate Management Utility
 ======================================
 
-**manage X509v3 certificate based public-key-infrastructures (PKI)**
+**manage X509v3 certificate based public-key-infrastructures (PKI) for mTLS authentication**
 
 ## Features ##
 
@@ -54,6 +54,7 @@ Usage: x509-tool <command> [args...]
 ## Documentation and Tutorials ##
 
 * [Usage/Available Commands](docs/Usage.md)
+* [Telematikinfrastruktur TI Konnektor](docs/ti.md)
 * [OpenVPN Client/Server Configuration](docs/OpenVPN.md)
 * [DD-WRT Server Configuration](docs/OpenVPN_DDWRT.md)
 
@@ -140,14 +141,15 @@ By default, the tool prefixes the common-names with their task. The placeholder 
 # OpenSSL Related Configuration
 # -----------------------------------------------
 
-# RSA or EC key ?
+# RSA or EC key ? EC|RSA
 export KEY_TYPE="EC"
 
-# select curve
+# select curve e.g. NIST256 prime256v1, prime256v1, secp384r1
+# $ openssl ecparam -list_curves
 export KEY_EC_CURVE="secp384r1"
 
 # RSA keysize - recommended >= 3072
-export KEY_SIZE=4096
+export KEY_SIZE=3072
 
 # Your Cert Params
 export KEY_COUNTRY="DE"
@@ -155,7 +157,7 @@ export KEY_PROVINCE="BERLIN"
 export KEY_CITY="BERLIN"
 export KEY_ORG="My Company"
 export KEY_EMAIL="pki-test@yourdomain.tld"
-export KEY_OU="OVPN-PKI Testing"
+export KEY_OU="PKI Testing"
 
 # x509 tool settings
 # -----------------------------------------------
@@ -168,6 +170,19 @@ CRT_EXPIRE=3650
 
 # certificate naming scheme: generic (client.crt) or based on common name (<cn>.crt)
 CRT_SCHEME="cn"
+
+# example to define env password for private keys
+export PKEYPW="demo1234"
+
+# how should the private key password provided?
+# https://docs.openssl.org/3.6/man1/openssl-passphrase-options
+PKEY_PASS_TYPE="pass:demopassphrase1234"
+#PKEY_PASS_TYPE="env:PKEYPW"
+
+# how should the p12 password provided?
+# https://docs.openssl.org/3.6/man1/openssl-passphrase-options
+P12_PASS_TYPE="pass:demopassphrase1234"
+#P12_PASS_TYPE="env:PKEYPW"
 
 # Certificate Common Name Templates
 # -----------------------------------------------
