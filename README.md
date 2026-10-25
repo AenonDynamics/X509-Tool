@@ -30,10 +30,10 @@ Usage: x509-tool <command> [args...]
     client add <cname>            Add a new client certificate
     client revoke <cname>         Revoke a client certificate
     
-    server add <cname>            Add a new server certificate
+    server add <cname> [san...]   Add a new server certificate (optional subject alt names)
     server revoke <cname>         Revoke a server vertificate
     
-    host add <cname>              Add a new host certificate
+    host add <cname> [san...]     Add a new host certificate (optional subject alt names)
     host revoke <cname>           Revoke a host vertificate
 
     code add <cname>              Add a new codesigning certificate

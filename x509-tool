@@ -18,7 +18,7 @@
 #
 # ----------------------------------------------------------------------
 
-VERSION="3.2.0"
+VERSION="3.3.0"
 
 show_usage(){
     cat << EOF
@@ -35,10 +35,10 @@ Usage: x509-tool <command> [args...]
     client add <cname>            Add a new client certificate
     client revoke <cname>         Revoke a client certificate
     
-    server add <cname>            Add a new server certificate
+    server add <cname> [san...]   Add a new server certificate (optional subject alt names)
     server revoke <cname>         Revoke a server vertificate
     
-    host add <cname>              Add a new host certificate
+    host add <cname> [san...]     Add a new host certificate (optional subject alt names)
     host revoke <cname>           Revoke a host vertificate
 
     code add <cname>              Add a new codesigning certificate
@@ -116,6 +116,9 @@ export HOST_DIR="${WORKING_DIR}/${HOST_DIRNAME}"
 export CSIGN_DIR="${WORKING_DIR}/${CSIGN_DIRNAME}"
 export SMIME_DIR="${WORKING_DIR}/${SMIME_DIRNAME}"
 
+# default: empty SAN list (overwritten by resolveCertParams for server/host certs)
+export KEY_SAN=""
+
 # Check environment
 # ----------------------------------------------
 function environment_check(){
@@ -152,12 +155,26 @@ function resolveCertParams(){
             export KEY_CN=$(printf ${SRV_COMMON_NAME} "${2}")
             CRT_FILENAME="server"
             CRT_STORAGE_DIR="${SERVER_DIR}"
+            # build subjectAltName list: CN + additional domains
+            export KEY_SAN="DNS:${KEY_CN}"
+            shift 2
+            for san in "$@"; do
+                KEY_SAN="${KEY_SAN},DNS:${san}"
+            done
+            export KEY_SAN
         ;;
 
         host_cert)
             export KEY_CN=$(printf ${HOST_COMMON_NAME} "${2}")
             CRT_FILENAME="host"
             CRT_STORAGE_DIR="${HOST_DIR}"
+            # build subjectAltName list: CN + additional domains
+            export KEY_SAN="DNS:${KEY_CN}"
+            shift 2
+            for san in "$@"; do
+                KEY_SAN="${KEY_SAN},DNS:${san}"
+            done
+            export KEY_SAN
         ;;
 
         codesigning_cert)
@@ -265,8 +282,31 @@ function cert_verify(){
 # ----------------------------------------------
 function cert_create(){
 
+    # safety: common name must not be empty
+    [ -z "${KEY_CN}" ] && panic "error: common name (KEY_CN) is empty - refusing to proceed"
+
     # cert already exists ?
-    [ -s "${CRT_OUTPUT_NAME}.crt" ] && panic "cert [${KEY_CN}] already exists!"
+    if [ -s "${CRT_OUTPUT_NAME}.crt" ]; then
+        CRT_DIR="${CRT_STORAGE_DIR}/${KEY_CN}"
+        log_warning "cert [${KEY_CN}] already exists in [${CRT_DIR}]"
+        read -p "Do you want to create a new certificate and replace the old one? [y/N] " REPLY
+        case "${REPLY}" in
+            y|Y|yes|YES|Yes)
+                # safety: never rm -rf with empty path components
+                if [ -z "${CRT_STORAGE_DIR}" ] || [ -z "${KEY_CN}" ]; then
+                    panic "error: refusing to delete - CRT_STORAGE_DIR or KEY_CN is empty"
+                fi
+                # revoke old cert before replacing it
+                cert_revoke "${KEY_CN}"
+                log_info "removing old cert directory [${CRT_DIR}]"
+                rm -rf "${CRT_DIR}"
+            ;;
+            *)
+                log_info "aborted - keeping existing cert [${KEY_CN}]"
+                exit 0
+            ;;
+        esac
+    fi
 
     print_heading "creating certificate for [${KEY_CN}]"
    
@@ -377,7 +417,7 @@ case "${1}:${2}" in
 
     server:add)
         environment_check
-        resolveCertParams "server_cert" "${3}"
+        resolveCertParams "server_cert" "${3}" "${@:4}"
         cert_create "server_cert"
         exit 0
     ;;
@@ -391,7 +431,7 @@ case "${1}:${2}" in
 
     host:add)
         environment_check
-        resolveCertParams "host_cert" "${3}"
+        resolveCertParams "host_cert" "${3}" "${@:4}"
         cert_create "host_cert"
         exit 0
     ;;

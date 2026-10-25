@@ -1,5 +1,9 @@
 ## Branch 3.X ##
 
+### 3.3.0 ###
+
+* Added: optional subject alternative names (SANs) for `server add` and `host add` commands — additional domains can be passed as extra arguments, e.g. `x509-tool server add example.com www.example.com *.example.com`
+
 ### 3.2.0 ###
 
 * Added: option to set p12 password type via `P12_PASS_TYPE`

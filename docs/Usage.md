@@ -170,7 +170,22 @@ Data Base Updated
 
 Create a new Server Certificate and sign it
 
-**Command:** `x509-tool server add <name>`
+**Command:** `x509-tool server add <name> [san...]`
+
+The first argument is the common name (main domain). Additional domains can be passed as optional subject alternative names (SANs). All names are added as `DNS:` entries to the certificate's `subjectAltName` extension.
+
+**Examples:**
+
+```bash
+# single domain (CN only, backward compatible)
+x509-tool server add myserver.example.com
+
+# multiple domains (CN + SANs)
+x509-tool server add myserver.example.com www.myserver.example.com shop.myserver.example.com
+
+# wildcard SAN
+x509-tool server add myserver.example.com *.myserver.example.com
+```
 
 ```raw
 /opt/pki-mgmt/server1$ x509-tool server add myserver
@@ -231,6 +246,24 @@ __________________________________________________________________________
 Revoking Certificate 02.
 Data Base Updated
 
+```
+
+## host-add ##
+
+Create a new Host Certificate (server + client auth) and sign it
+
+**Command:** `x509-tool host add <name> [san...]`
+
+Same as [server add](#server-add), but the certificate includes both `serverAuth` and `clientAuth` extended key usage. Additional domains can be passed as optional subject alternative names (SANs).
+
+**Examples:**
+
+```bash
+# single hostname
+x509-tool host add node1.example.com
+
+# hostname with additional SANs
+x509-tool host add node1.example.com node1.lan node1.internal
 ```
 
 ## View Certificate ##
