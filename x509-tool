@@ -78,11 +78,11 @@ WORKING_DIR="$(pwd)"
 # basedir
 BASEDIR="$( cd "$( dirname "$(realpath ${BASH_SOURCE}[0])" )" && pwd )"
 
-# locations
-OVPN_BIN=/usr/sbin/openvpn
-OPENSSL_BIN=/usr/bin/openssl
-CONF_DIR=/etc/x509-tool
-LIB_DIR=/usr/share/x509-tool
+# locations (overridable via environment for testing/development)
+OVPN_BIN="${OVPN_BIN:-/usr/sbin/openvpn}"
+OPENSSL_BIN="${OPENSSL_BIN:-/usr/bin/openssl}"
+CONF_DIR="${CONF_DIR:-/etc/x509-tool}"
+LIB_DIR="${LIB_DIR:-/usr/share/x509-tool}"
 
 # command provided ?
 if [ -z "${1}" ]; then

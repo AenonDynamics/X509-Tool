@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# ----------------------------------------------------------------------
+# x509-tool Test Runner
+# Runs all bats unit tests in the tests/ directory with pretty output
+# ----------------------------------------------------------------------
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEST_DIR="${SCRIPT_DIR}/tests"
+
+if ! command -v bats &>/dev/null; then
+    echo "Error: bats is not installed. Install it with: apt-get install bats" >&2
+    exit 1
+fi
+
+if [ ! -d "${TEST_DIR}" ]; then
+    echo "Error: test directory not found: ${TEST_DIR}" >&2
+    exit 1
+fi
+
+# Forward extra arguments to bats (e.g. --filter "pattern")
+exec bats --pretty "${TEST_DIR}" "$@"
