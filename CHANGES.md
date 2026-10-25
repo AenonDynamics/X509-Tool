@@ -1,5 +1,12 @@
 ## Branch 3.X ##
 
+### 3.3.1 ###
+
+* Security: private keys are now actually encrypted with AES-256-CBC — added `-aes-256-cbc` to `openssl genpkey` (previously `-pass` alone produced unencrypted PKCS#8 keys)
+* Security: CRL is now generated as v2 with extensions (Authority Key Identifier) — added `crl_extensions = crl_ext` to `[CA_default]` in `openssl.conf`
+* Changed: added `-passin` to all `openssl req`, `openssl ca`, and `openssl ca -gencrl` invocations to support encrypted CA and entity keys
+* Added: comprehensive security compliance test suite (`tests/test_13_security.bats`, 85 tests) covering signature algorithms, key sizes, critical extensions, EKU/KU correctness, SAN, CRL v2, PKCS#12 encryption, validity periods, and revocation checks against NIST SP 800-57, RFC 5280, CA/Browser Forum Baseline Requirements
+
 ### 3.3.0 ###
 
 * Added: optional subject alternative names (SANs) for `server add` and `host add` commands — additional domains can be passed as extra arguments, e.g. `x509-tool server add example.com www.example.com *.example.com`

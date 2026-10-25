@@ -26,6 +26,7 @@ function ca_init(){
         -new \
         -x509 \
         -key "${CA_DIR}/ca.key" \
+        -passin "${CA_PASS_TYPE}" \
         -out "${CA_DIR}/ca.crt"
 
     # copy ca to chain file

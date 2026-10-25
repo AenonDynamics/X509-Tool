@@ -18,7 +18,7 @@
 #
 # ----------------------------------------------------------------------
 
-VERSION="3.3.0"
+VERSION="3.3.1"
 
 show_usage(){
     cat << EOF
@@ -48,6 +48,8 @@ Usage: x509-tool <command> [args...]
     smime revoke <email>          Revoke a s/mime signing certificate
 
     openvpn init <ca-name>        Initializes CA + tls auth, dhparams and single server
+
+    util genpkey <output-file>    Generate a private key manually (uses cert.conf settings)
 
     --help                        Displays this help
     --version                     Displays version
@@ -217,11 +219,17 @@ function resolveCertParams(){
 function cert_genpkey(){
     print_heading "generating new private ${KEY_TYPE} key"
 
+    # build passphrase options (empty array = unencrypted key)
+    local PASS_OPTS=()
+    if [ -n "${2}" ]; then
+        PASS_OPTS=(-pass "${2}" -aes-256-cbc)
+    fi
+
     # generate EC key ?
     if [ "${KEY_TYPE}" == "EC" ]; then
         ${OPENSSL_BIN} genpkey \
             -algorithm EC \
-            -pass "${2}" \
+            "${PASS_OPTS[@]}" \
             -pkeyopt ec_paramgen_curve:${KEY_EC_CURVE} \
             -pkeyopt ec_param_enc:named_curve \
             -out "${1}" || panic "error: cannot create private key"
@@ -230,7 +238,7 @@ function cert_genpkey(){
     else
         ${OPENSSL_BIN} genpkey \
             -algorithm RSA \
-            -pass "${2}" \
+            "${PASS_OPTS[@]}" \
             -pkeyopt rsa_keygen_bits:${KEY_SIZE} \
             -out "${1}" || panic "error: cannot create private key"
     fi
@@ -255,6 +263,7 @@ function crl_create(){
     ${OPENSSL_BIN} ca \
         -batch \
         -config "${CONF_DIR}/openssl.conf" \
+        -passin "${CA_PASS_TYPE}" \
         -gencrl \
         -out "${CA_DIR}/crl.pem"
 
@@ -334,6 +343,7 @@ function cert_create(){
         -config "${CONF_DIR}/openssl.conf" \
         -new \
         -key "${CRT_OUTPUT_NAME}.key" \
+        -passin "${PKEY_PASS_TYPE}" \
         -out "${CRT_OUTPUT_NAME}.csr" || panic "error: cannot create private key + csr"
 
     # Sign CSR -> Generate CERT
@@ -373,6 +383,7 @@ function cert_revoke(){
     print_heading "revoking cert [${1}].."
     ${OPENSSL_BIN} ca \
         -config "${CONF_DIR}/openssl.conf" \
+        -passin "${CA_PASS_TYPE}" \
         -revoke "${CRT_OUTPUT_NAME}.crt" || panic "error: unable to revoke cert"
 
     # Re-Create CRL
@@ -479,6 +490,13 @@ case "${1}:${2}" in
     verify:*)
         environment_check
         cert_verify "${2}"
+        exit 0
+    ;;
+
+    util:genpkey)
+        environment_check "noca"
+        [ -z "${3}" ] && panic "error: output file required. Usage: x509-tool util genpkey <output-file>"
+        cert_genpkey "${3}" "${PKEY_PASS_TYPE}"
         exit 0
     ;;
 
