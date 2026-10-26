@@ -13,6 +13,7 @@ Usage + Commands
 * [host revoke](#host-revoke)
 * [show](#view-certificate)
 * [verify](#verify-certificate)
+* [Security Considerations](#security-considerations)
 
 We recommend you to install the tool into a **different** directory. This has the advantage that you only have to maintain one installation which is useable for multiple server setups.
 
@@ -336,3 +337,66 @@ clients/user1/client.crt: C = DE, ST = BREMEN, L = BREMEN, O = Aenon Dynamics, O
 error 23 at 0 depth lookup:certificate revoked
 
 ```
+
+## Security Considerations ##
+
+### Passphrase Handling ###
+
+The tool uses OpenSSL passphrase options to provide passwords for private keys, CA operations, and PKCS#12 export. **How you provide the password matters**:
+
+| Option | Example | Security |
+|--------|---------|----------|
+| `pass:<password>` | `pass:secret123` | **INSECURE** — password is passed as a command-line argument and visible in the process list (`ps aux`, `/proc/<pid>/cmdline`) to all local users while OpenSSL is running |
+| `env:<VAR>` | `env:CA_PASSWORD` | **RECOMMENDED** — password is read from an environment variable, not visible in process list |
+| `file:<path>` | `file:/root/.ca-pass` | **RECOMMENDED** — password is read from a file; ensure the file has `chmod 600` and is in a secure directory |
+| `fd:<number>` | `fd:3` | Secure — password read from a file descriptor (advanced use) |
+
+The tool **automatically prints a warning** when `pass:` is detected in `CA_PASS_TYPE`, `PKEY_PASS_TYPE`, or `P12_PASS_TYPE`:
+
+```raw
+[12:34:56] >> SECURITY: CA_PASS_TYPE uses 'pass:' — the password is visible in the process list (ps, /proc/*/cmdline)
+[12:34:56] >>   Consider using 'env:VAR' or 'file:/path' instead.
+```
+
+**Example secure configuration** (`cert.conf`):
+
+```bash
+# Define passwords in environment variables before running the tool
+export CA_PASSWORD="my-ca-secret"
+export KEY_PASSWORD="my-key-secret"
+export P12_PASSWORD="my-p12-secret"
+
+# Reference them in cert.conf
+CA_PASS_TYPE="env:CA_PASSWORD"
+PKEY_PASS_TYPE="env:KEY_PASSWORD"
+P12_PASS_TYPE="env:P12_PASSWORD"
+```
+
+Or use protected password files:
+
+```bash
+# Create password files with restrictive permissions
+echo "my-ca-secret" > /root/.x509/ca.pass && chmod 600 /root/.x509/ca.pass
+echo "my-key-secret" > /root/.x509/key.pass && chmod 600 /root/.x509/key.pass
+
+# Reference them in cert.conf
+CA_PASS_TYPE="file:/root/.x509/ca.pass"
+PKEY_PASS_TYPE="file:/root/.x509/key.pass"
+P12_PASS_TYPE="file:/root/.x509/key.pass"
+```
+
+Reference: [OpenSSL Passphrase Options](https://docs.openssl.org/3.6/man1/openssl-passphrase-options.html)
+
+### File Permissions ###
+
+* Set restrictive permissions on `cert.conf` (contains passwords): `chmod 600 cert.conf`
+* The working directory should not be world-readable: `chmod 700 /opt/pki-mgmt`
+* Private key files (`.key`) are created with `chmod 600` by OpenSSL when a passphrase is used
+
+### Configuration File Safety ###
+
+`cert.conf` is loaded via `source` (Bash). This means the file is **executed as Bash code**, not just parsed as data. Only use `cert.conf` files from trusted sources. A malicious `cert.conf` can execute arbitrary commands with your user privileges.
+
+### Common Name Validation ###
+
+The common name (CN) is used as a directory name and in certificate paths. Avoid special characters, path traversal sequences (`../`), and names longer than 64 characters (RFC 5280 limit for `ub-common-name`).

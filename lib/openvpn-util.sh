@@ -15,7 +15,7 @@ function openvpn_init(){
     # Diffie hellman parameters
     print_heading "Generating DHParams"
     log_warning "Even Modern Systems (XEON/Core i) will take around 10-40min to complete!"
-    ${OPENSSL_BIN} dhparam -out "${CA_DIR}/dh${KEY_SIZE}.pem" ${KEY_SIZE}
+    ${OPENSSL_BIN} dhparam -out "${CA_DIR}/dh${KEY_SIZE}.pem" "${KEY_SIZE}"
 
     # success!
     print_heading "READY!"

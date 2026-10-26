@@ -228,6 +228,10 @@ $ x509-tool client add user1.users.mydomain.tld
 
 * Keep your **Private Keys secret** - especially the CA Key.
 * Consider to **encrypt** your Private Keys by a strong passphrase using AES256
+* **Never use `pass:<password>`** in `cert.conf` — the password is passed as a command-line argument to OpenSSL and is **visible in the process list** (`ps aux`, `/proc/<pid>/cmdline`) to all local users while OpenSSL is running. Use `env:<VAR>` or `file:<path>` instead. The tool prints a warning when `pass:` is detected.
+* Protect `cert.conf` with restrictive permissions: `chmod 600 cert.conf`
+* Run the tool in a directory with restrictive permissions (`chmod 700`)
+* Regularly update the CRL and revoke compromised certificates immediately
 
 ## Contributing ##
 Contributors are welcome! Even if you are not familiar with X509 certificates or bash scripting you can help to improve the documentation!

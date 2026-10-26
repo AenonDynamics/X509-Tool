@@ -1,5 +1,22 @@
 ## Branch 3.X ##
 
+### 3.3.2 ###
+
+* Security: added `set -euo pipefail` for strict error handling (undefined variables, pipeline failures)
+* Security: added `umask 077` — private keys and config files are no longer world-readable
+* Security: added warning when `pass:` is used in `CA_PASS_TYPE`/`PKEY_PASS_TYPE`/`P12_PASS_TYPE` — passwords are visible in the process list (`ps`, `/proc/*/cmdline`); recommends `env:` or `file:` instead
+* Security: added warning when `cert.conf` is readable by group/others — file contains passwords, recommends `chmod 600`
+* Security: added `validate_cn()` — common names are validated against path traversal (`/`, `\`, `..`), leading `.`/`-`, and the RFC 5280 64-character limit
+* Security: `rm -rf` now uses `--` and validates that the target path is inside `CRT_STORAGE_DIR` before deletion
+* Security: PKCS#12 export now uses explicit AES-256-CBC encryption (`-certpbe`, `-keypbe`) and SHA-256 MAC (`-macalg sha256`)
+* Security: `openssl verify` now uses `-x509_strict` for stricter RFC 5280 compliance checking
+* Bugfix: ICA private keys are now encrypted with `CA_PASS_TYPE` (was `PKEY_PASS_TYPE`), fixing inconsistency where `openssl ca` could not read ICA keys signed with a different password
+* Bugfix: `cert_revoke` error message corrected ("does not exist" instead of "already exists")
+* Bugfix: `hook_exec` in `bash-functions` — fixed `$WORKINGDIR` typo (was `$WORKING_DIR`), hooks in working directory are now found correctly
+* Changed: all shell variables are now properly quoted throughout the codebase (prevents word-splitting and glob expansion)
+* Changed: removed deprecated `RANDFILE` directives from `openssl.conf` (unused since OpenSSL 1.1.1, internal CSPRNG is used)
+* Changed: `bash-functions` — `print_heading`, `print_subheading`, `hook_exec`, `scriptd_exec` are now `set -u` safe
+
 ### 3.3.1 ###
 
 * Security: private keys are now actually encrypted with AES-256-CBC — added `-aes-256-cbc` to `openssl genpkey` (previously `-pass` alone produced unencrypted PKCS#8 keys)

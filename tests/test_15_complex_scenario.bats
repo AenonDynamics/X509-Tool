@@ -139,13 +139,6 @@ setup() {
     openssl rand -out "${ICA2_CERT_DIR}/ca/.rnd" 1024
     openssl rand -out "${ICA3_CERT_DIR}/ca/.rnd" 1024
 
-    # ica_init creates the ICA key via cert_create which uses PKEY_PASS_TYPE,
-    # but openssl ca loads the CA key with CA_PASS_TYPE. Align CA_PASS_TYPE in
-    # the ICA's cert.conf so that openssl ca can decrypt the ICA private key.
-    sed -i 's|^CA_PASS_TYPE=.*|CA_PASS_TYPE="pass:testkey1234"|' "${ICA1_CERT_DIR}/cert.conf"
-    sed -i 's|^CA_PASS_TYPE=.*|CA_PASS_TYPE="pass:testkey1234"|' "${ICA2_CERT_DIR}/cert.conf"
-    sed -i 's|^CA_PASS_TYPE=.*|CA_PASS_TYPE="pass:testkey1234"|' "${ICA3_CERT_DIR}/cert.conf"
-
     # ica_init does not create a CRL (crl_create is only called by ca_init and
     # cert_revoke). Seed an empty CRL so that verify works before any revoke.
     # openssl.conf references several $ENV::KEY_* variables that are normally
@@ -158,7 +151,7 @@ setup() {
             export KEY_SAN="DNS:dummy"
             CA_DIR="${ica_cert_dir}/ca" openssl ca -batch \
                 -config "${TOOL_DIR}/openssl.conf" \
-                -passin pass:testkey1234 \
+                -passin pass:testca1234 \
                 -gencrl \
                 -out "${ica_cert_dir}/ca/crl.pem" 2>/dev/null || true
         )
@@ -567,8 +560,8 @@ teardown() {
     # ICA1 and ICA2 must have different CA keys
     # (ICA keys are encrypted with PKEY_PASS_TYPE by ica_init/cert_create)
     local key1 key2
-    key1=$(openssl pkey -in "${ICA1_CERT_DIR}/ca/ca.key" -passin pass:testkey1234 -pubout 2>/dev/null | sha256sum | cut -d' ' -f1)
-    key2=$(openssl pkey -in "${ICA2_CERT_DIR}/ca/ca.key" -passin pass:testkey1234 -pubout 2>/dev/null | sha256sum | cut -d' ' -f1)
+    key1=$(openssl pkey -in "${ICA1_CERT_DIR}/ca/ca.key" -passin pass:testca1234 -pubout 2>/dev/null | sha256sum | cut -d' ' -f1)
+    key2=$(openssl pkey -in "${ICA2_CERT_DIR}/ca/ca.key" -passin pass:testca1234 -pubout 2>/dev/null | sha256sum | cut -d' ' -f1)
     [ "${key1}" != "${key2}" ]
 }
 

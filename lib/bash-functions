@@ -21,13 +21,13 @@ _print_colorized(){
 
 print_heading(){
     # title set ?
-    [ -z "$1" ] && return
+    [ -z "${1:-}" ] && return
 
     # default style: bold bright blue
     STYLE='\x1B[34m\x1B[1m'
 
     # style set ?
-    [ ! -z "$2" ] && {
+    [ ! -z "${2:-}" ] && {
         STYLE="$2"
     }
 
@@ -43,13 +43,13 @@ print_heading(){
 
 print_subheading(){
     # title set ?
-    [ -z "$1" ] && return
+    [ -z "${1:-}" ] && return
 
     # default style: bold blue
     STYLE='\x1B[7m\x1B[34m\x1B[1m'
 
     # style set ?
-    [ ! -z "$2" ] && {
+    [ ! -z "${2:-}" ] && {
         STYLE="$2"
     }
 
@@ -95,41 +95,42 @@ hook_exec(){
     log_info "hook [$1] triggered"
 
     # hook set ?
-    if [ -z "$1" ]; then
+    if [ -z "${1:-}" ]; then
         log_error "invalid hook call"
         return
     fi
 
     # default hook source
-    local HOOK_FILE="$BASEDIR/.hooks/$1"
+    local HOOK_FILE="${BASEDIR}/.hooks/$1"
 
     # hook file exists in working dir ?
-    if [ -f $WORKINGDIR/.hooks/$1 ]; then
-        local HOOK_FILE="$WORKINGDIR/.hooks/$1"
+    if [ -f "${WORKING_DIR}/.hooks/$1" ]; then
+        local HOOK_FILE="${WORKING_DIR}/.hooks/$1"
     fi
 
     # executable ?
-    if [ ! -f $HOOK_FILE ] || [ ! -x $HOOK_FILE ]; then
-        log_info "hook [$HOOK_FILE] cannot be executed"
+    if [ ! -f "${HOOK_FILE}" ] || [ ! -x "${HOOK_FILE}" ]; then
+        log_info "hook [${HOOK_FILE}] cannot be executed"
         return
     fi
 
     # run hook
     log_info "running hook [$1].."
     HOOK_FN="hook_$1"
-    source $HOOK_FILE
-    $HOOK_FN $2
+    # shellcheck disable=SC1090
+    source "${HOOK_FILE}"
+    ${HOOK_FN} ${2:-}
 }
 
 scriptd_exec(){
     # hook name provided ?
-    if [ -z "$1" ]; then
+    if [ -z "${1:-}" ]; then
         log_error "invalid script exec call - hook name not provided"
         return
     fi
 
     # hook dir set ?
-    if [ -z "$2" ]; then
+    if [ -z "${2:-}" ]; then
         log_error "invalid script exec call - dir not provided"
         return
     fi
@@ -139,9 +140,9 @@ scriptd_exec(){
     local LEGACY_FILENAME="${2}/${1}.sh"
 
     # single file hook found ?
-    if [ -x "$LEGACY_FILENAME" ]; then
+    if [ -x "${LEGACY_FILENAME}" ]; then
         log_info "> invoking legacy script"
-        $LEGACY_FILENAME
+        "${LEGACY_FILENAME}"
     fi
 
     # hook dir valid ?
@@ -157,14 +158,14 @@ scriptd_exec(){
     do
 
         # show filename
-        log_info "> invoking [$1/$file]"
+        log_info "> invoking [$1/${file}]"
 
         # executable ?
-        if [ ! -f $file ] || [ ! -x $file ]; then
-            log_error "hook [$1/$file] cannot be executed"
+        if [ ! -f "${file}" ] || [ ! -x "${file}" ]; then
+            log_error "hook [$1/${file}] cannot be executed"
         fi
 
         # execute script
-        $file
+        "${file}"
     done
 }

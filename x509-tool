@@ -18,7 +18,7 @@
 #
 # ----------------------------------------------------------------------
 
-VERSION="3.3.1"
+VERSION="3.3.2"
 
 show_usage(){
     cat << EOF
@@ -68,17 +68,20 @@ EOF
 }
 
 # simple processing
-[ "${1}" = "--help" ] && show_usage
-[ "${1}" = "--version" ] && show_version
+[ "${1:-}" = "--help" ] && show_usage
+[ "${1:-}" = "--version" ] && show_version
 
-# Exit on Error
-set -e
+# Strict mode: exit on error, undefined variables, and pipeline failures
+set -euo pipefail
+
+# Restrictive umask: private keys and config files must not be world-readable
+umask 077
 
 # current working dir
 WORKING_DIR="$(pwd)"
 
 # basedir
-BASEDIR="$( cd "$( dirname "$(realpath ${BASH_SOURCE}[0])" )" && pwd )"
+BASEDIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" && pwd )"
 
 # locations (overridable via environment for testing/development)
 OVPN_BIN="${OVPN_BIN:-/usr/sbin/openvpn}"
@@ -87,15 +90,15 @@ CONF_DIR="${CONF_DIR:-/etc/x509-tool}"
 LIB_DIR="${LIB_DIR:-/usr/share/x509-tool}"
 
 # command provided ?
-if [ -z "${1}" ]; then
+if [ -z "${1:-}" ]; then
     show_usage
 fi
 
 # load bash functions
-source ${LIB_DIR}/bash-functions
+source "${LIB_DIR}/bash-functions"
 
 # load command extensions
-for x509ext in ${LIB_DIR}/*.sh; do source ${x509ext}; done
+for x509ext in "${LIB_DIR}"/*.sh; do source "${x509ext}"; done
 
 # VARS
 # ----------------------------------------------
@@ -121,6 +124,19 @@ export SMIME_DIR="${WORKING_DIR}/${SMIME_DIRNAME}"
 # default: empty SAN list (overwritten by resolveCertParams for server/host certs)
 export KEY_SAN=""
 
+# Warn about insecure passphrase handling (pass: exposes password in process list)
+# ----------------------------------------------
+function warn_insecure_passphrase(){
+    local var_name var_value
+    for var_name in CA_PASS_TYPE PKEY_PASS_TYPE P12_PASS_TYPE; do
+        var_value="${!var_name}"
+        if [ -n "${var_value}" ] && [[ "${var_value}" == pass:* ]]; then
+            log_warning "SECURITY: ${var_name} uses 'pass:' — the password is visible in the process list (ps, /proc/*/cmdline)"
+            log_warning "  Consider using 'env:VAR' or 'file:/path' instead. See: https://docs.openssl.org/3.6/man1/openssl-passphrase-options.html"
+        fi
+    done
+}
+
 # Check environment
 # ----------------------------------------------
 function environment_check(){
@@ -131,12 +147,23 @@ function environment_check(){
         log_error "An example file is available in ${CONF_DIR}/cert.example.conf"
         exit 1
     fi
-    
+
+    # warn if cert.conf is readable by group/others (contains passwords)
+    local conf_perms
+    conf_perms=$(stat -c "%a" "${WORKING_DIR}/cert.conf" 2>/dev/null || stat -f "%Lp" "${WORKING_DIR}/cert.conf" 2>/dev/null || true)
+    if [ -n "${conf_perms}" ] && [ $((8#${conf_perms} & 8#077)) -ne 0 ]; then
+        log_warning "SECURITY: cert.conf is readable by group/others (mode ${conf_perms}) — contains passwords!"
+        log_warning "  Consider: chmod 600 ${WORKING_DIR}/cert.conf"
+    fi
+
     # Load cert config/parameter
     source "${WORKING_DIR}/cert.conf"
-    
+
+    # warn about insecure passphrase options (pass: exposes password in process list)
+    warn_insecure_passphrase
+
     # ca exists ?
-    if [ "${1}" != "noca" ]; then
+    if [ "${1:-}" != "noca" ]; then
         [ -f "${CA_DIR}/ca.crt" ] || panic "certificate authority doesn't exist"
     fi
 }
@@ -148,13 +175,13 @@ function resolveCertParams(){
     # export common name as env
     case "${1}" in
         client_cert)
-            export KEY_CN=$(printf ${CLIENT_COMMON_NAME} "${2}")
+            export KEY_CN=$(printf "${CLIENT_COMMON_NAME}" "${2}")
             CRT_FILENAME="client"
             CRT_STORAGE_DIR="${CLIENT_DIR}"
         ;;
 
         server_cert)
-            export KEY_CN=$(printf ${SRV_COMMON_NAME} "${2}")
+            export KEY_CN=$(printf "${SRV_COMMON_NAME}" "${2}")
             CRT_FILENAME="server"
             CRT_STORAGE_DIR="${SERVER_DIR}"
             # build subjectAltName list: CN + additional domains
@@ -167,7 +194,7 @@ function resolveCertParams(){
         ;;
 
         host_cert)
-            export KEY_CN=$(printf ${HOST_COMMON_NAME} "${2}")
+            export KEY_CN=$(printf "${HOST_COMMON_NAME}" "${2}")
             CRT_FILENAME="host"
             CRT_STORAGE_DIR="${HOST_DIR}"
             # build subjectAltName list: CN + additional domains
@@ -180,21 +207,21 @@ function resolveCertParams(){
         ;;
 
         codesigning_cert)
-            export KEY_CN=$(printf ${CODESIGNING_COMMON_NAME} "${2}")
+            export KEY_CN=$(printf "${CODESIGNING_COMMON_NAME}" "${2}")
             CRT_FILENAME="code"
             CRT_STORAGE_DIR="${CSIGN_DIR}"
         ;;
 
         smime_cert)
-            export KEY_EMAIL=$(printf ${SMIME_EMAIL_NAME} "${3}")
-            export KEY_CN=$(printf ${SMIME_COMMON_NAME} "${2}")
+            export KEY_EMAIL=$(printf "${SMIME_EMAIL_NAME}" "${3}")
+            export KEY_CN=$(printf "${SMIME_COMMON_NAME}" "${2}")
             CRT_FILENAME="smime"
             CRT_STORAGE_DIR="${SMIME_DIR}"
         ;;
 
         ica_cert)
             export KEY_OU="${3}"
-            export KEY_CN=$(printf ${ICA_COMMON_NAME} "${2}")
+            export KEY_CN=$(printf "${ICA_COMMON_NAME}" "${2}")
             CRT_FILENAME="ca"
             CRT_STORAGE_DIR="${ICA_DIR}"
         ;;
@@ -230,7 +257,7 @@ function cert_genpkey(){
         ${OPENSSL_BIN} genpkey \
             -algorithm EC \
             "${PASS_OPTS[@]}" \
-            -pkeyopt ec_paramgen_curve:${KEY_EC_CURVE} \
+            -pkeyopt "ec_paramgen_curve:${KEY_EC_CURVE}" \
             -pkeyopt ec_param_enc:named_curve \
             -out "${1}" || panic "error: cannot create private key"
 
@@ -239,7 +266,7 @@ function cert_genpkey(){
         ${OPENSSL_BIN} genpkey \
             -algorithm RSA \
             "${PASS_OPTS[@]}" \
-            -pkeyopt rsa_keygen_bits:${KEY_SIZE} \
+            -pkeyopt "rsa_keygen_bits:${KEY_SIZE}" \
             -out "${1}" || panic "error: cannot create private key"
     fi
 }
@@ -257,7 +284,7 @@ function cert_show(){
 # (Re-)Create the Certificate revocation list
 # ----------------------------------------------
 function crl_create(){
-    print_heading "Certificate revocation list [${1}]"
+    print_heading "Certificate revocation list [${1:-${CA_DIR}}]"
 
     # generate crl
     ${OPENSSL_BIN} ca \
@@ -283,16 +310,45 @@ function cert_verify(){
     print_heading "Verifying Certificate [${1}]"
     ${OPENSSL_BIN} verify \
         -crl_check \
+        -x509_strict \
         -CAfile "${CA_DIR}/ca-crl-verify.pem" \
-        ${1}
+        "${1}"
+}
+
+# Validate common name for safe filesystem usage and RFC 5280 compliance
+# ----------------------------------------------
+function validate_cn(){
+    local cn="${1}"
+
+    # must not be empty
+    [ -z "${cn}" ] && panic "error: common name (KEY_CN) is empty - refusing to proceed"
+
+    # must not exceed 64 characters (RFC 5280 ub-common-name limit)
+    if [ ${#cn} -gt 64 ]; then
+        panic "error: common name exceeds 64 characters (RFC 5280 limit)"
+    fi
+
+    # must not contain path traversal or separator characters
+    case "${cn}" in
+        */*|*\\*|*..*|*$'\n'*|*$'\t'*)
+            panic "error: common name contains invalid characters (path traversal or whitespace): [${cn}]"
+        ;;
+    esac
+
+    # must not start with a dot or dash (prevents hidden files / option injection)
+    case "${cn}" in
+        .*|-*)
+            panic "error: common name must not start with '.' or '-': [${cn}]"
+        ;;
+    esac
 }
 
 # Create new Cert
 # ----------------------------------------------
 function cert_create(){
 
-    # safety: common name must not be empty
-    [ -z "${KEY_CN}" ] && panic "error: common name (KEY_CN) is empty - refusing to proceed"
+    # safety: validate common name before using it as a path component
+    validate_cn "${KEY_CN}"
 
     # cert already exists ?
     if [ -s "${CRT_OUTPUT_NAME}.crt" ]; then
@@ -305,10 +361,15 @@ function cert_create(){
                 if [ -z "${CRT_STORAGE_DIR}" ] || [ -z "${KEY_CN}" ]; then
                     panic "error: refusing to delete - CRT_STORAGE_DIR or KEY_CN is empty"
                 fi
+                # safety: ensure CRT_DIR is inside CRT_STORAGE_DIR (prevent path traversal)
+                case "${CRT_DIR}" in
+                    "${CRT_STORAGE_DIR}"/*) : ;;
+                    *) panic "error: refusing to delete - path [${CRT_DIR}] is outside [${CRT_STORAGE_DIR}]" ;;
+                esac
                 # revoke old cert before replacing it
                 cert_revoke "${KEY_CN}"
                 log_info "removing old cert directory [${CRT_DIR}]"
-                rm -rf "${CRT_DIR}"
+                rm -rf -- "${CRT_DIR}"
             ;;
             *)
                 log_info "aborted - keeping existing cert [${KEY_CN}]"
@@ -320,22 +381,29 @@ function cert_create(){
     print_heading "creating certificate for [${KEY_CN}]"
    
     # openssl extension
-    OPENSSL_EXT=${1}
+    OPENSSL_EXT="${1}"
 
     # create output dir
     mkdir -p "${CRT_STORAGE_DIR}/${KEY_CN}"
 
     # Show info
-    log_info ${KEY_COUNTRY}
-    log_info ${KEY_PROVINCE}
-    log_info ${KEY_CITY}
-    log_info ${KEY_ORG}
-    log_info ${KEY_OU}
-    log_info ${KEY_CN}
-    log_info ${KEY_EMAIL}
+    log_info "${KEY_COUNTRY:-}"
+    log_info "${KEY_PROVINCE:-}"
+    log_info "${KEY_CITY:-}"
+    log_info "${KEY_ORG:-}"
+    log_info "${KEY_OU:-}"
+    log_info "${KEY_CN:-}"
+    log_info "${KEY_EMAIL:-}"
 
     # generate private key
-    cert_genpkey "${CRT_OUTPUT_NAME}.key" "${PKEY_PASS_TYPE}"
+    # ICA keys are CA keys — use CA_PASS_TYPE so openssl ca can read them later
+    local CERT_KEY_PASS
+    if [ "${OPENSSL_EXT}" == "ica_cert" ]; then
+        CERT_KEY_PASS="${CA_PASS_TYPE}"
+    else
+        CERT_KEY_PASS="${PKEY_PASS_TYPE}"
+    fi
+    cert_genpkey "${CRT_OUTPUT_NAME}.key" "${CERT_KEY_PASS}"
 
     # create CSR
     log_info "generating signing request.."
@@ -343,7 +411,7 @@ function cert_create(){
         -config "${CONF_DIR}/openssl.conf" \
         -new \
         -key "${CRT_OUTPUT_NAME}.key" \
-        -passin "${PKEY_PASS_TYPE}" \
+        -passin "${CERT_KEY_PASS}" \
         -out "${CRT_OUTPUT_NAME}.csr" || panic "error: cannot create private key + csr"
 
     # Sign CSR -> Generate CERT
@@ -351,9 +419,9 @@ function cert_create(){
     ${OPENSSL_BIN} ca \
         -batch \
         -notext \
-        -config ${CONF_DIR}/openssl.conf \
-        -days ${CRT_EXPIRE} \
-        -extensions ${OPENSSL_EXT} \
+        -config "${CONF_DIR}/openssl.conf" \
+        -days "${CRT_EXPIRE}" \
+        -extensions "${OPENSSL_EXT}" \
         -passin "${CA_PASS_TYPE}" \
         -in "${CRT_OUTPUT_NAME}.csr" \
         -out "${CRT_OUTPUT_NAME}.crt" || panic "error: cannot sign cert"
@@ -365,8 +433,11 @@ function cert_create(){
         -in "${CRT_OUTPUT_NAME}.crt" \
         -inkey "${CRT_OUTPUT_NAME}.key" \
         -certfile "${CA_DIR}/ca-fullchain.pem" \
+        -certpbe AES-256-CBC \
+        -keypbe AES-256-CBC \
+        -macalg sha256 \
         -out "${CRT_OUTPUT_NAME}.p12" \
-        -passin "${PKEY_PASS_TYPE}" \
+        -passin "${CERT_KEY_PASS}" \
         -passout "${P12_PASS_TYPE}"
 
     # show cert
@@ -377,8 +448,8 @@ function cert_create(){
 # ----------------------------------------------
 function cert_revoke(){
 
-    # cert already exists ?
-    [ ! -f "${CRT_OUTPUT_NAME}.crt" ] && panic "cert [${KEY_CN}] already exists!"
+    # cert must exist
+    [ ! -f "${CRT_OUTPUT_NAME}.crt" ] && panic "cert [${KEY_CN}] does not exist!"
 
     print_heading "revoking cert [${1}].."
     ${OPENSSL_BIN} ca \
@@ -393,110 +464,110 @@ function cert_revoke(){
 
 # Command Dispatching
 # ---------------------------------------
-case "${1}:${2}" in
+case "${1:-}:${2:-}" in
     ca:init)
         environment_check "noca"
-        ca_init "${3}"
+        ca_init "${3:-}"
         exit 0
     ;;
 
     ica:init)
         environment_check "noca"
-        ica_init "${3}" "${4}"
+        ica_init "${3:-}" "${4:-}"
         exit 0
     ;;
 
     openvpn:init)
         environment_check "noca"
-        openvpn_init "${3}"
+        openvpn_init "${3:-}"
         exit 0
     ;;
 
     client:add)
         environment_check
-        resolveCertParams "client_cert" "${3}"
+        resolveCertParams "client_cert" "${3:-}"
         cert_create "client_cert"
         exit 0
     ;;
 
     client:revoke)
         environment_check
-        resolveCertParams "client_cert" "${3}"
-        cert_revoke "${3}"
+        resolveCertParams "client_cert" "${3:-}"
+        cert_revoke "${3:-}"
         exit 0
     ;;
 
     server:add)
         environment_check
-        resolveCertParams "server_cert" "${3}" "${@:4}"
+        resolveCertParams "server_cert" "${3:-}" "${@:4}"
         cert_create "server_cert"
         exit 0
     ;;
 
     server:revoke)
         environment_check
-        resolveCertParams "server_cert" "${3}"
-        cert_revoke "${3}"
+        resolveCertParams "server_cert" "${3:-}"
+        cert_revoke "${3:-}"
         exit 0
     ;;
 
     host:add)
         environment_check
-        resolveCertParams "host_cert" "${3}" "${@:4}"
+        resolveCertParams "host_cert" "${3:-}" "${@:4}"
         cert_create "host_cert"
         exit 0
     ;;
 
     host:revoke)
         environment_check
-        resolveCertParams "host_cert" "${3}"
-        cert_revoke "${3}"
+        resolveCertParams "host_cert" "${3:-}"
+        cert_revoke "${3:-}"
         exit 0
     ;;
 
     code:add)
         environment_check
-        resolveCertParams "codesigning_cert" "${3}"
+        resolveCertParams "codesigning_cert" "${3:-}"
         cert_create "codesigning_cert"
         exit 0
     ;;
 
     code:revoke)
         environment_check
-        resolveCertParams "codesigning_cert" "${3}"
-        cert_revoke "${3}"
+        resolveCertParams "codesigning_cert" "${3:-}"
+        cert_revoke "${3:-}"
         exit 0
     ;;
 
     smime:add)
         environment_check
-        resolveCertParams "smime_cert" "${3}" "${4}"
+        resolveCertParams "smime_cert" "${3:-}" "${4:-}"
         cert_create "smime_cert"
         exit 0
     ;;
 
     smime:revoke)
         environment_check
-        resolveCertParams "smime_cert" "${3}"
-        cert_revoke "${3}"
+        resolveCertParams "smime_cert" "${3:-}"
+        cert_revoke "${3:-}"
         exit 0
     ;;
 
     show:*)
-        cert_show "${2}"
+        cert_show "${2:-}"
         exit 0
     ;;
 
     verify:*)
         environment_check
-        cert_verify "${2}"
+        cert_verify "${2:-}"
         exit 0
     ;;
 
     util:genpkey)
         environment_check "noca"
-        [ -z "${3}" ] && panic "error: output file required. Usage: x509-tool util genpkey <output-file>"
-        cert_genpkey "${3}" "${PKEY_PASS_TYPE}"
+        [ -z "${3:-}" ] && panic "error: output file required. Usage: x509-tool util genpkey <output-file>"
+        cert_genpkey "${3:-}" "${PKEY_PASS_TYPE}"
         exit 0
     ;;
 

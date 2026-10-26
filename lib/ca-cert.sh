@@ -22,7 +22,7 @@ function ca_init(){
     print_heading "creating CA.."
     ${OPENSSL_BIN} req \
         -config "${CONF_DIR}/openssl.conf" \
-        -days ${CA_EXPIRE} \
+        -days "${CA_EXPIRE}" \
         -new \
         -x509 \
         -key "${CA_DIR}/ca.key" \
