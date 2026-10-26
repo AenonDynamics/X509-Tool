@@ -18,7 +18,7 @@
 #
 # ----------------------------------------------------------------------
 
-VERSION="3.3.2"
+VERSION="3.3.3"
 
 show_usage(){
     cat << EOF
@@ -137,6 +137,83 @@ function warn_insecure_passphrase(){
     done
 }
 
+# Warn about insecure cryptographic parameters and configuration
+# ----------------------------------------------
+function warn_insecure_parameters(){
+
+    # --- KEY_TYPE: must be EC or RSA ---
+    case "${KEY_TYPE:-}" in
+        EC|RSA) : ;;
+        "")
+            log_warning "SECURITY: KEY_TYPE is not set — defaulting to RSA. Set KEY_TYPE=EC or KEY_TYPE=RSA explicitly."
+            ;;
+        *)
+            log_warning "SECURITY: KEY_TYPE='${KEY_TYPE}' is not recommended — use 'EC' or 'RSA'."
+            log_warning "  '${KEY_TYPE}' keys may be deprecated, unsupported, or cryptographically weak."
+            ;;
+    esac
+
+    # --- KEY_SIZE: RSA minimum 2048, recommended 3072 (NIST SP 800-57) ---
+    if [ "${KEY_TYPE:-}" = "RSA" ]; then
+        local key_size="${KEY_SIZE:-0}"
+        if [ "${key_size}" -lt 2048 ] 2>/dev/null; then
+            log_warning "SECURITY: RSA key size ${key_size} bits is INSECURE — minimum is 2048 bits (NIST SP 800-57)."
+            log_warning "  512/1024-bit RSA keys can be factored with modest resources. Use >= 3072 bits."
+        elif [ "${key_size}" -lt 3072 ] 2>/dev/null; then
+            log_warning "SECURITY: RSA key size ${key_size} bits is below the recommended 3072 bits (NIST SP 800-57)."
+            log_warning "  2048 bits is the minimum; 3072+ is recommended for long-lived CA keys."
+        fi
+    fi
+
+    # --- KEY_EC_CURVE: whitelist of secure named curves (NIST SP 800-57 / RFC 5480) ---
+    if [ "${KEY_TYPE:-}" = "EC" ]; then
+        case "${KEY_EC_CURVE:-}" in
+            prime256v1|secp256r1|secp384r1|secp521r1) : ;;
+            "")
+                log_warning "SECURITY: KEY_EC_CURVE is not set — EC key generation will fail."
+                ;;
+            *)
+                log_warning "SECURITY: EC curve '${KEY_EC_CURVE}' is not in the recommended whitelist."
+                log_warning "  Recommended curves: prime256v1 (P-256), secp384r1 (P-384), secp521r1 (P-521)."
+                ;;
+        esac
+    fi
+
+    # --- Passphrase strength: warn if pass: password is very short ---
+    local pass_var pass_value pass_len
+    for pass_var in CA_PASS_TYPE PKEY_PASS_TYPE P12_PASS_TYPE; do
+        pass_value="${!pass_var:-}"
+        if [[ "${pass_value}" == pass:* ]]; then
+            # extract password after "pass:" prefix
+            pass_value="${pass_value#pass:}"
+            pass_len=${#pass_value}
+            if [ "${pass_len}" -lt 8 ]; then
+                log_warning "SECURITY: ${pass_var} password is only ${pass_len} character(s) — minimum 12+ recommended."
+            elif [ "${pass_len}" -lt 12 ]; then
+                log_warning "SECURITY: ${pass_var} password is ${pass_len} characters — 12+ characters recommended."
+            fi
+        fi
+    done
+
+    # --- CRT_EXPIRE: warn if end-entity certs live longer than 825 days ---
+    # CA/Browser Forum Baseline Requirements: max 398 days for public TLS certs.
+    # For private PKI, 825 days (NIST SP 800-57) is a reasonable upper bound.
+    local crt_expire="${CRT_EXPIRE:-0}"
+    if [ "${crt_expire}" -gt 825 ] 2>/dev/null; then
+        log_warning "SECURITY: CRT_EXPIRE=${crt_expire} days — end-entity certificates should not exceed 825 days."
+        log_warning "  CA/Browser Forum allows max 398 days for public TLS certs (NIST SP 800-57: 825 days for private PKI)."
+    elif [ "${crt_expire}" -gt 398 ] 2>/dev/null; then
+        log_warning "SECURITY: CRT_EXPIRE=${crt_expire} days exceeds the CA/Browser Forum limit of 398 days for public TLS certs."
+    fi
+
+    # --- CA_EXPIRE: warn if root CA lives longer than 20 years ---
+    local ca_expire="${CA_EXPIRE:-0}"
+    if [ "${ca_expire}" -gt 7300 ] 2>/dev/null; then
+        log_warning "SECURITY: CA_EXPIRE=${ca_expire} days (${ca_expire} / 365 = $((ca_expire / 365)) years) — root CA lifetime exceeds 20 years."
+        log_warning "  Long-lived root CAs increase exposure risk. Consider 10 years (3650 days) or less."
+    fi
+}
+
 # Check environment
 # ----------------------------------------------
 function environment_check(){
@@ -161,6 +238,9 @@ function environment_check(){
 
     # warn about insecure passphrase options (pass: exposes password in process list)
     warn_insecure_passphrase
+
+    # warn about insecure cryptographic parameters and configuration
+    warn_insecure_parameters
 
     # ca exists ?
     if [ "${1:-}" != "noca" ]; then

@@ -1,5 +1,16 @@
 ## Branch 3.X ##
 
+### 3.3.3 ###
+
+* Security: added `warn_insecure_parameters()` in `environment_check` — warns about insecure cryptographic configuration:
+  - `KEY_TYPE` not `EC` or `RSA` (e.g. DSA is deprecated/weak)
+  - RSA `KEY_SIZE` < 2048 bits (INSECURE) or < 3072 bits (below NIST SP 800-57 recommendation)
+  - EC `KEY_EC_CURVE` not in whitelist (`prime256v1`, `secp256r1`, `secp384r1`, `secp521r1`)
+  - `pass:` passphrases shorter than 8 characters (weak) or 12 characters (recommended minimum)
+  - `CRT_EXPIRE` > 398 days (CA/Browser Forum limit) or > 825 days (NIST SP 800-57 private PKI limit)
+  - `CA_EXPIRE` > 7300 days (20 years — excessive root CA lifetime)
+* Added: 40 new tests in `tests/test_16_warnings.bats` covering all parameter security warnings
+
 ### 3.3.2 ###
 
 * Security: added `set -euo pipefail` for strict error handling (undefined variables, pipeline failures)
